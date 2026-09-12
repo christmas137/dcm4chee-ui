@@ -3,6 +3,7 @@ import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useReloadConfig } from '../../api/devices'
 import { Button } from '../../components/form'
 import { AeEditor } from './AeEditor'
+import { ArchiveTab } from './ArchiveTab'
 import { AeList } from './AeList'
 import { DeviceEditor } from './DeviceEditor'
 import { DeviceList } from './DeviceList'
@@ -11,6 +12,7 @@ import { NewDeviceDialog } from './NewDeviceDialog'
 const TABS = [
   { key: 'ae', label: 'AE-титлы' },
   { key: 'devices', label: 'Устройства' },
+  { key: 'archive', label: 'Настройки архива' },
 ] as const
 
 export function SettingsPage() {
@@ -50,7 +52,9 @@ export function SettingsPage() {
           </button>
         ))}
         <div className="flex-1" />
-        <Button tone="primary" onClick={() => setCreating(true)}>+ Новое подключение</Button>
+        {tab !== 'archive' && (
+          <Button tone="primary" onClick={() => setCreating(true)}>+ Новое подключение</Button>
+        )}
       </div>
 
       {/* Конфигурация записана, но работающий архив ещё живёт со старой — без reload изменения не вступят в силу. */}
@@ -67,6 +71,13 @@ export function SettingsPage() {
         </div>
       )}
 
+      {tab === 'archive' ? (
+        <ArchiveTab
+          section={search.section}
+          onSelectSection={(section) => update({ section })}
+          onChanged={() => setDirty(true)}
+        />
+      ) : (
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">
           {tab === 'ae' ? (
@@ -104,6 +115,7 @@ export function SettingsPage() {
           </aside>
         )}
       </div>
+      )}
 
       {creating && (
         <NewDeviceDialog

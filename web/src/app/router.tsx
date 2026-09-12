@@ -91,9 +91,11 @@ const studiesRoute = createRoute({
 
 /** Что открыто в конфигурации: вкладка, выбранное устройство, выбранный AE. */
 export interface SettingsSearch {
-  tab?: 'ae' | 'devices'
+  tab?: 'ae' | 'devices' | 'archive'
   device?: string
   ae?: string
+  /** Путь раздела настроек архива, например `dcmDevice/dcmArchiveDevice/dcmStorage`. */
+  section?: string
 }
 
 const tasksRoute = createRoute({ getParentRoute: () => rootRoute, path: '/tasks', component: TasksPage })
@@ -103,9 +105,10 @@ const settingsRoute = createRoute({
   path: '/settings',
   component: SettingsPage,
   validateSearch: (search: Record<string, unknown>): SettingsSearch => ({
-    tab: search.tab === 'devices' ? 'devices' : search.tab === 'ae' ? 'ae' : undefined,
+    tab: search.tab === 'devices' || search.tab === 'archive' || search.tab === 'ae' ? search.tab : undefined,
     device: asString(search.device),
     ae: asString(search.ae),
+    section: asString(search.section),
   }),
 })
 
