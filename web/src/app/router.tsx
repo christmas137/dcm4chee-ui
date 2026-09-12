@@ -89,9 +89,25 @@ const studiesRoute = createRoute({
   }),
 })
 
+/** Что открыто в конфигурации: вкладка, выбранное устройство, выбранный AE. */
+export interface SettingsSearch {
+  tab?: 'ae' | 'devices'
+  device?: string
+  ae?: string
+}
+
 const tasksRoute = createRoute({ getParentRoute: () => rootRoute, path: '/tasks', component: TasksPage })
 const uploadRoute = createRoute({ getParentRoute: () => rootRoute, path: '/upload', component: UploadPage })
-const settingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings', component: SettingsPage })
+const settingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/settings',
+  component: SettingsPage,
+  validateSearch: (search: Record<string, unknown>): SettingsSearch => ({
+    tab: search.tab === 'devices' ? 'devices' : search.tab === 'ae' ? 'ae' : undefined,
+    device: asString(search.device),
+    ae: asString(search.ae),
+  }),
+})
 
 const routeTree = rootRoute.addChildren([indexRoute, studiesRoute, tasksRoute, uploadRoute, settingsRoute])
 
