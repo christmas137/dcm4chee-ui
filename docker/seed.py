@@ -184,6 +184,9 @@ def main() -> int:
     ap.add_argument("--aet", default="DCM4CHEE")
     ap.add_argument("--studies", type=int, default=12, help="сколько исследований создать")
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--acc-base", type=int, default=20000, help="с какого номера нумеровать назначения")
+    ap.add_argument("--slices", type=int, default=0,
+                    help="ограничить число срезов в серии (для быстрой заливки объёма)")
     args = ap.parse_args()
 
     rng = np.random.default_rng(args.seed)
@@ -199,13 +202,15 @@ def main() -> int:
             generate_uid(),
             day.strftime("%Y%m%d"),
             f"{rnd.randint(8, 19):02d}{rnd.randint(0, 59):02d}{rnd.randint(0, 59):02d}",
-            f"ACC{20000 + i}",
+            f"ACC{args.acc_base + i}",
             study_desc,
         )
 
         datasets = []
         for s_idx, series_desc in enumerate(series_descs):
             n = 1 if "Topogram" in series_desc else (8 if modality == "US" else rnd.choice([24, 32, 48]))
+            if args.slices:
+                n = min(n, args.slices)
             rows = cols = 128 if modality != "US" else 96
             series = (generate_uid(), s_idx + 1, series_desc)
             for k in range(n):

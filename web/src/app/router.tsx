@@ -7,8 +7,21 @@ import { SettingsPage } from '../features/settings/SettingsPage'
 
 /** Состояние поиска живёт в URL: ссылка на результат должна открываться один в один. */
 export interface StudiesSearch {
+  /** Строка омнибокса. */
   q?: string
+  /** Границы StudyDate в формате YYYYMMDD — задаются чипами, перекрывают дату из текста. */
+  from?: string
+  to?: string
+  /** Отмеченные модальности. */
+  mod?: string[]
+  /** Значение QIDO `orderby`. */
+  sort?: string
+  /** StudyInstanceUID открытого исследования — панель деталей. */
+  study?: string
 }
+
+const asString = (value: unknown): string | undefined =>
+  typeof value === 'string' && value ? value : undefined
 
 const rootRoute = createRootRoute({ component: Layout })
 
@@ -25,7 +38,12 @@ const studiesRoute = createRoute({
   path: '/studies',
   component: StudiesPage,
   validateSearch: (search: Record<string, unknown>): StudiesSearch => ({
-    q: typeof search.q === 'string' && search.q ? search.q : undefined,
+    q: asString(search.q),
+    from: asString(search.from),
+    to: asString(search.to),
+    mod: Array.isArray(search.mod) ? search.mod.filter((m): m is string => typeof m === 'string') : undefined,
+    sort: asString(search.sort),
+    study: asString(search.study),
   }),
 })
 
