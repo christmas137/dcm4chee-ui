@@ -1,4 +1,11 @@
-import { createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router'
+import {
+  createRootRoute,
+  createRoute,
+  createRouter,
+  parseSearchWith,
+  redirect,
+  stringifySearchWith,
+} from '@tanstack/react-router'
 import { Layout } from './Layout'
 import { StudiesPage } from '../features/studies/StudiesPage'
 import { TasksPage } from '../features/tasks/TasksPage'
@@ -20,8 +27,43 @@ export interface StudiesSearch {
   study?: string
 }
 
-const asString = (value: unknown): string | undefined =>
-  typeof value === 'string' && value ? value : undefined
+/**
+ * По умолчанию роутер прогоняет значения через JSON, и строка в URL выглядит как
+ * `from=%2220260912%22`. Ссылками на такое неудобно делиться, поэтому строки пишем как есть,
+ * а JSON оставляем массивам и числам.
+ */
+const parseValue = (raw: string): unknown => {
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return raw
+  }
+}
+
+const stringifyValue = (value: unknown): string => {
+  if (typeof value === 'string') return value
+  // Список модальностей читается как `mod=CT,MR`, а не как JSON-массив.
+  if (Array.isArray(value) && value.every((item) => typeof item === 'string')) return value.join(',')
+  return JSON.stringify(value)
+}
+
+/** `mod` может прийти строкой (`CT,MR`) или массивом — нормализуем к массиву. */
+const asStringList = (value: unknown): string[] | undefined => {
+  const list = typeof value === 'string'
+    ? value.split(',')
+    : Array.isArray(value)
+      ? value.map((item) => (typeof item === 'string' ? item : String(item)))
+      : []
+  const cleaned = list.map((item) => item.trim()).filter(Boolean)
+  return cleaned.length ? cleaned : undefined
+}
+
+/** Число из URL (`from=20260912`, `q=20000`) — тоже строка с точки зрения фильтров. */
+const asString = (value: unknown): string | undefined => {
+  if (typeof value === 'string') return value || undefined
+  if (typeof value === 'number') return String(value)
+  return undefined
+}
 
 const rootRoute = createRootRoute({ component: Layout })
 
@@ -41,7 +83,7 @@ const studiesRoute = createRoute({
     q: asString(search.q),
     from: asString(search.from),
     to: asString(search.to),
-    mod: Array.isArray(search.mod) ? search.mod.filter((m): m is string => typeof m === 'string') : undefined,
+    mod: asStringList(search.mod),
     sort: asString(search.sort),
     study: asString(search.study),
   }),
@@ -53,7 +95,12 @@ const settingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/set
 
 const routeTree = rootRoute.addChildren([indexRoute, studiesRoute, tasksRoute, uploadRoute, settingsRoute])
 
-export const router = createRouter({ routeTree, defaultPreload: 'intent' })
+export const router = createRouter({
+  routeTree,
+  defaultPreload: 'intent',
+  parseSearch: parseSearchWith(parseValue),
+  stringifySearch: stringifySearchWith(stringifyValue, parseValue),
+})
 
 declare module '@tanstack/react-router' {
   interface Register {
