@@ -19,19 +19,22 @@ ok()   { printf '    %s✓%s %s\n' "$C_GRN" "$C_OFF" "$*"; }
 warn() { printf '    %s!%s %s\n' "$C_YEL" "$C_OFF" "$*" >&2; }
 die()  { printf '%sОшибка:%s %s\n' "$C_RED" "$C_OFF" "$*" >&2; exit 1; }
 
-# Docker или Podman: явный выбор через RUNTIME, иначе — что найдётся первым.
+# Docker или Podman с compose. Явный выбор — через RUNTIME, иначе что найдётся первым.
+# Не завершает работу: пустой RUNTIME значит «пригодного нет» — ставить его или ругаться,
+# решает вызывающий (install.sh умеет поставить, dcm4chee.sh — нет).
+usable_runtime() { command -v "$1" >/dev/null 2>&1 && "$1" compose version >/dev/null 2>&1; }
+
 detect_runtime() {
-  if [ -n "${RUNTIME:-}" ]; then
-    command -v "$RUNTIME" >/dev/null 2>&1 || die "не найден $RUNTIME"
-    return
-  fi
-  if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+  local wanted="${RUNTIME:-}"
+  RUNTIME=""
+  if [ -n "$wanted" ]; then
+    if usable_runtime "$wanted"; then RUNTIME="$wanted"; fi
+  elif usable_runtime docker; then
     RUNTIME=docker
-  elif command -v podman >/dev/null 2>&1 && podman compose version >/dev/null 2>&1; then
+  elif usable_runtime podman; then
     RUNTIME=podman
-  else
-    RUNTIME=""
   fi
+  return 0
 }
 
 # Адрес сервера, который увидят модальности. Порядок важен: мосты Docker/Podman (docker0, br-*,

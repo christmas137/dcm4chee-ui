@@ -51,6 +51,21 @@ expect "без ip — первый адрес из hostname -I" 192.168.1.5 "$(h
 reset_stubs
 expect "ничего не известно — 127.0.0.1" 127.0.0.1 "$(host_with_stubs)"
 
+echo "== Выбор рантайма"
+runtime_with_stubs() { RUNTIME="$1"; PATH="$STUBS" detect_runtime; echo "${RUNTIME:-нет}"; }
+reset_stubs
+stub docker 'exit 0'
+stub podman 'exit 0'
+expect "оба есть — Docker" docker "$(runtime_with_stubs '')"
+expect "явно Podman — Podman" podman "$(runtime_with_stubs podman)"
+reset_stubs
+stub podman 'exit 0'
+expect "только Podman — Podman" podman "$(runtime_with_stubs '')"
+expect "явно Docker, а его нет — «нет», без аварийного выхода" нет "$(runtime_with_stubs docker)"
+reset_stubs
+stub docker '[ "$1" = compose ] && exit 1; exit 0'
+expect "Docker без плагина compose — непригоден" нет "$(runtime_with_stubs '')"
+
 echo "== Правка .env"
 ENV_FILE="$(mktemp)"
 printf '# комментарий\nUI_PORT=80\nDATA_DIR=/var/lib/dcm4chee\nARCHIVE_URL=http://arc:8080\n' >"$ENV_FILE"

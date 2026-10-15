@@ -88,14 +88,17 @@ install_runtime() {
 
 check_runtime() {
   step "Контейнеры"
+  local wanted="${RUNTIME:-}"
   detect_runtime
-  if [ -z "$RUNTIME" ] || ! "$RUNTIME" compose version >/dev/null 2>&1; then
-    if [ "$INSTALL_RUNTIME" -eq 1 ]; then
-      install_runtime
-      detect_runtime
-    fi
+  if [ -z "$RUNTIME" ] && [ "$INSTALL_RUNTIME" -eq 1 ]; then
+    RUNTIME="$wanted"
+    install_runtime
+    RUNTIME="$wanted"
+    detect_runtime
   fi
-  [ -n "$RUNTIME" ] || die "нужен Docker с compose или Podman с compose. Запустите с --install-runtime или поставьте сами."
+  if [ -z "$RUNTIME" ]; then
+    die "нужен ${wanted:-Docker или Podman} с compose. Запустите с --install-runtime или поставьте сами."
+  fi
   ok "$RUNTIME: $("$RUNTIME" --version | head -1)"
 }
 
