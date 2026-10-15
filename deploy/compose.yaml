@@ -1,0 +1,79 @@
+# dcm4chee целиком: LDAP (конфигурация) + PostgreSQL (индекс) + архив + новый интерфейс.
+# Все настройки — в .env (создаёт install.sh). Запуск: ./dcm4chee.sh start
+
+name: dcm4chee
+
+services:
+  ldap:
+    image: docker.io/dcm4che/slapd-dcm4chee:${LDAP_VERSION}
+    restart: unless-stopped
+    environment:
+      ARCHIVE_HOST: ${ARCHIVE_HOST}
+      DICOM_PORT: ${DICOM_PORT}
+      STORAGE_DIR: /storage/fs1
+      LDAP_ROOTPASS: ${LDAP_ROOTPASS}
+      LDAP_CONFIGPASS: ${LDAP_CONFIGPASS}
+    volumes:
+      - ${DATA_DIR}/ldap:/var/lib/openldap/openldap-data
+      - ${DATA_DIR}/slapd.d:/etc/openldap/slapd.d
+
+  db:
+    image: docker.io/dcm4che/postgres-dcm4chee:${POSTGRES_VERSION}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ${DATA_DIR}/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  arc:
+    image: docker.io/dcm4che/dcm4chee-arc-psql:${ARC_VERSION}
+    restart: unless-stopped
+    depends_on:
+      ldap:
+        condition: service_started
+      db:
+        condition: service_healthy
+    ports:
+      - "${ARCHIVE_HTTP_PORT}:8080"
+      - "${DICOM_PORT}:${DICOM_PORT}"
+      - "${HL7_PORT}:2575"
+      - "127.0.0.1:${MANAGEMENT_PORT}:9990"
+    environment:
+      LDAP_ROOTPASS: ${LDAP_ROOTPASS}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      WILDFLY_ADMIN_USER: ${WILDFLY_ADMIN_USER}
+      WILDFLY_ADMIN_PASSWORD: ${WILDFLY_ADMIN_PASSWORD}
+      WILDFLY_CHOWN: /opt/wildfly/standalone /storage
+      WILDFLY_WAIT_FOR: ldap:389 db:5432
+      WILDFLY_PACSDS_USE_CCM: "false"
+      JBOSS_JAVA_SIZING: -Xms${JVM_HEAP_MIN} -Xmx${JVM_HEAP_MAX} -XX:MetaspaceSize=96M -XX:MaxMetaspaceSize=512m
+      # Новый интерфейс ходит в архив через свой nginx — пусть архив видит настоящий адрес клиента.
+      HTTP_PROXY_ADDRESS_FORWARDING: "true"
+    volumes:
+      - ${DATA_DIR}/wildfly:/opt/wildfly/standalone
+      - ${DATA_DIR}/storage:/storage
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "-o", "/dev/null", "http://localhost:8080/dcm4chee-arc/aets"]
+      interval: 15s
+      timeout: 5s
+      retries: 40
+      start_period: 60s
+
+  ui:
+    image: localhost/dcm4chee-ui:${UI_VERSION}
+    restart: unless-stopped
+    depends_on:
+      - arc
+    ports:
+      - "${UI_PORT}:80"
+    environment:
+      ARCHIVE_URL: http://arc:8080

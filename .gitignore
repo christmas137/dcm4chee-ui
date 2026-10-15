@@ -7,3 +7,10 @@ web/.vite/
 tmp/
 testdata/
 docker/.venv/
+
+# Развёртывание: пароли, копии и пакеты не должны попасть в репозиторий
+deploy/.env
+deploy/.mode
+deploy/backups/
+deploy/images/
+dist/

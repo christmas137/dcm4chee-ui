@@ -1,0 +1,12 @@
+# Только новый интерфейс — к уже работающему dcm4chee. Адрес архива — ARCHIVE_URL в .env.
+
+name: dcm4chee-ui
+
+services:
+  ui:
+    image: localhost/dcm4chee-ui:${UI_VERSION}
+    restart: unless-stopped
+    ports:
+      - "${UI_PORT}:80"
+    environment:
+      ARCHIVE_URL: ${ARCHIVE_URL}
