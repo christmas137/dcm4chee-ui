@@ -11,25 +11,27 @@ interface Column {
   /** Поле для QIDO `orderby`; без него столбец не сортируется. */
   sort?: string
   align?: 'right'
+  /** Прячется, когда рядом открыта панель исследования и места мало. */
+  optional?: boolean
   render(row: StudyRow): string
 }
 
 const COLUMNS: Column[] = [
   { key: 'patient', title: 'Пациент', width: 'minmax(190px,1.8fr)', sort: 'PatientName', render: (r) => r.patientName },
   { key: 'pid', title: 'ID пациента', width: '120px', sort: 'PatientID', render: (r) => r.patientID },
-  { key: 'birth', title: 'ДР / пол', width: '120px', sort: 'PatientBirthDate',
+  { key: 'birth', title: 'ДР / пол', width: '120px', sort: 'PatientBirthDate', optional: true,
     render: (r) => [formatDateTime(r.birthDate), r.sex].filter(Boolean).join(' · ') },
   { key: 'date', title: 'Дата', width: '130px', sort: 'StudyDate', render: (r) => formatDateTime(r.studyDate, r.studyTime) },
   { key: 'mod', title: 'Мод.', width: '86px', render: (r) => r.modalities.join(', ') },
   { key: 'desc', title: 'Описание', width: 'minmax(180px,2fr)', sort: 'StudyDescription', render: (r) => r.description ?? '' },
-  { key: 'acc', title: '№ назначения', width: '120px', sort: 'AccessionNumber', render: (r) => r.accession ?? '' },
-  { key: 'series', title: 'Сер.', width: '56px', align: 'right', render: (r) => String(r.series ?? '') },
-  { key: 'inst', title: 'Сним.', width: '64px', align: 'right', render: (r) => String(r.instances ?? '') },
-  { key: 'size', title: 'Объём', width: '84px', align: 'right',
+  { key: 'acc', title: '№ назначения', width: '120px', sort: 'AccessionNumber', optional: true, render: (r) => r.accession ?? '' },
+  { key: 'series', title: 'Сер.', width: '56px', align: 'right', optional: true, render: (r) => String(r.series ?? '') },
+  { key: 'inst', title: 'Сним.', width: '64px', align: 'right', optional: true, render: (r) => String(r.instances ?? '') },
+  { key: 'size', title: 'Объём', width: '84px', align: 'right', optional: true,
     render: (r) => (r.sizeKB === undefined ? '' : formatBytes(r.sizeKB * 1024)) },
 ]
 
-const GRID = COLUMNS.map((c) => c.width).join(' ')
+const COMPACT_COLUMNS = COLUMNS.filter((column) => !column.optional)
 const ROW_HEIGHT = 30
 
 /** Клик по столбцу: по убыванию → по возрастанию → как было. */
@@ -41,6 +43,8 @@ export function nextSort(current: string, field: string): string | undefined {
 
 interface Props {
   rows: StudyRow[]
+  /** Узкий режим: только главные колонки. */
+  compact?: boolean
   sort: string
   selected: number
   onSelect(index: number): void
@@ -52,10 +56,12 @@ interface Props {
 }
 
 export function StudyTable({
-  rows, sort, selected, onSelect, onActivate, onSortChange,
+  rows, compact = false, sort, selected, onSelect, onActivate, onSortChange,
   hasNextPage, isFetchingNextPage, fetchNextPage,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const columns = compact ? COMPACT_COLUMNS : COLUMNS
+  const grid = columns.map((column) => column.width).join(' ')
 
   const virtualizer = useVirtualizer({
     count: rows.length,
@@ -81,9 +87,9 @@ export function StudyTable({
     <div className="flex min-h-0 flex-1 flex-col">
       <div
         className="grid shrink-0 items-center gap-x-3 border-b border-line bg-panel px-3 text-[11px] font-medium text-muted"
-        style={{ gridTemplateColumns: GRID, height: 28 }}
+        style={{ gridTemplateColumns: grid, height: 28 }}
       >
-        {COLUMNS.map((column) => {
+        {columns.map((column) => {
           const active = column.sort && (sort === column.sort || sort === `-${column.sort}`)
           return (
             <button
@@ -122,12 +128,12 @@ export function StudyTable({
                   isSelected ? 'bg-accent/12 text-fg' : 'hover:bg-panel-2',
                 ].join(' ')}
                 style={{
-                  gridTemplateColumns: GRID,
+                  gridTemplateColumns: grid,
                   height: ROW_HEIGHT,
                   transform: `translateY(${item.start}px)`,
                 }}
               >
-                {COLUMNS.map((column) => (
+                {columns.map((column) => (
                   <span
                     key={column.key}
                     title={column.render(row)}
