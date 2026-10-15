@@ -28,6 +28,11 @@ export default defineConfig({
   worker: {
     format: 'es',
   },
+  build: {
+    // Крупные чанки — намеренно и лениво: словарь DICOM-тегов и cornerstone с кодеками
+    // грузятся, только когда открыты метаданные или вьюер. Основной бандл — ~140 КБ gzip.
+    chunkSizeWarningLimit: 3500,
+  },
   test: {
     // jsdom везде: чистым функциям он не мешает, а компонентным тестам нужен.
     environment: 'jsdom',
