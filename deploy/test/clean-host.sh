@@ -53,8 +53,10 @@ echo "== Запуск машины"
 docker run -d --name "$NAME" --privileged --cgroupns=host \
   -v /sys/fs/cgroup:/sys/fs/cgroup:rw -v "$VOLUME:/var/lib/containers-store" \
   --tmpfs /run --tmpfs /run/lock "$IMAGE" >/dev/null || exit 1
-docker exec "$NAME" sh -c 'mkdir -p /var/lib/containers-store/docker /var/lib/containers-store/podman &&
+# Docker 29 держит слои в containerd — его каталог тоже уносим на том.
+docker exec "$NAME" sh -c 'cd /var/lib/containers-store && mkdir -p docker containerd podman &&
   ln -sfn /var/lib/containers-store/docker /var/lib/docker &&
+  ln -sfn /var/lib/containers-store/containerd /var/lib/containerd &&
   mkdir -p /var/lib/containers && ln -sfn /var/lib/containers-store/podman /var/lib/containers/storage'
 until docker exec "$NAME" systemctl is-system-running 2>/dev/null | grep -qE 'running|degraded'; do sleep 1; done
 
