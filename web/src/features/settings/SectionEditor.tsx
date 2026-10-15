@@ -109,6 +109,7 @@ export function SectionEditor({
             <Button onClick={() => setSelected(null)}>Закрыть</Button>
           </div>
           <JsonEditor
+            label="JSON записи"
             value={current}
             rows={12}
             onChange={(next) =>

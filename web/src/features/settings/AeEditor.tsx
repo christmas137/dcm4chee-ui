@@ -153,7 +153,7 @@ export function AeEditor({ deviceName, aeTitle, onChanged, onClose }: Props) {
               <p className="text-[10px] text-muted">
                 Здесь доступно всё, что умеет dcm4chee, включая настройки хранения и правила.
               </p>
-              <JsonEditor value={ae} onChange={(next) => setDraft(next as NetworkAE)} rows={18} />
+              <JsonEditor label="JSON AE" value={ae} onChange={(next) => setDraft(next as NetworkAE)} rows={18} />
             </>
           )}
         </section>

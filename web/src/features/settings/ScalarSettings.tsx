@@ -4,6 +4,31 @@ import { EmptyState } from '../../components/ui'
 import { scalarSettings } from './archiveSections'
 
 /**
+ * Числовой параметр. Текст поля живёт отдельно от черновика конфигурации: пока поле пустое
+ * или там не число, в черновик ничего не пишется. Иначе после «стёр и набрал заново»
+ * параметр уезжал бы на сервер строкой ("500" вместо 500) — такое уже ловили тестом.
+ */
+function NumberCell({ name, value, onChange }: { name: string; value: number; onChange(next: number): void }) {
+  const [text, setText] = useState(String(value))
+  const invalid = text.trim() === '' || !Number.isFinite(Number(text))
+  return (
+    <TextInput
+      aria-label={name}
+      aria-invalid={invalid}
+      inputMode="decimal"
+      value={text}
+      className={invalid ? 'border-danger' : ''}
+      onChange={(event) => {
+        const raw = event.target.value
+        setText(raw)
+        const parsed = Number(raw)
+        if (raw.trim() !== '' && Number.isFinite(parsed)) onChange(parsed)
+      }}
+    />
+  )
+}
+
+/**
  * Одиночные параметры архива (их полсотни: интервалы, политики, алгоритмы).
  * В штатном UI они рассыпаны по длинной форме — здесь это таблица с поиском.
  */
@@ -48,16 +73,10 @@ export function ScalarSettings({
                   {typeof value === 'boolean' ? (
                     <Checkbox label={value ? 'включено' : 'выключено'} checked={value}
                       onChange={(checked) => onChange(key, checked)} />
+                  ) : typeof value === 'number' ? (
+                    <NumberCell name={key} value={value} onChange={(next) => onChange(key, next)} />
                   ) : (
-                    <TextInput
-                      value={String(value)}
-                      onChange={(event) => {
-                        const raw = event.target.value
-                        onChange(key, typeof value === 'number' && raw !== '' && !Number.isNaN(Number(raw))
-                          ? Number(raw)
-                          : raw)
-                      }}
-                    />
+                    <TextInput aria-label={key} value={value} onChange={(event) => onChange(key, event.target.value)} />
                   )}
                 </td>
               </tr>

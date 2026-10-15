@@ -25,6 +25,13 @@ export function ArchiveTab({
   const save = useSaveDevice()
   const [draft, setDraft] = useState<Device | null>(null)
   const [filter, setFilter] = useState('')
+  // Сброс или сохранение пересоздаёт редакторы: у полей бывает своё локальное состояние.
+  const [revision, setRevision] = useState(0)
+
+  function discard() {
+    setDraft(null)
+    setRevision((value) => value + 1)
+  }
 
   const current = draft ?? device.data
   const dirty = draft !== null
@@ -56,7 +63,7 @@ export function ArchiveTab({
 
   return (
     <div className="flex min-h-0 flex-1">
-      <nav className="flex w-64 shrink-0 flex-col border-r border-line">
+      <nav aria-label="Разделы конфигурации" className="flex w-64 shrink-0 flex-col border-r border-line">
         <div className="border-b border-line p-2">
           <TextInput
             placeholder="Раздел…"
@@ -89,7 +96,7 @@ export function ArchiveTab({
                       section === key ? 'bg-accent/15 text-accent' : 'hover:bg-panel-2'
                     }`}
                   >
-                    <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                    <span className="min-w-0 flex-1 truncate">{item.label}</span>{' '}
                     <span className={count ? 'text-muted' : 'text-muted/50'}>{count}</span>
                   </button>
                 )
@@ -106,23 +113,24 @@ export function ArchiveTab({
             {dirty && <span className="ml-2 text-warn">есть несохранённые правки</span>}
           </span>
           <Button tone="primary" disabled={!dirty || save.isPending} onClick={() =>
-            save.mutate(current, { onSuccess: () => { setDraft(null); onChanged() } })}>
+            save.mutate(current, { onSuccess: () => { discard(); onChanged() } })}>
             {save.isPending ? 'Сохраняем…' : 'Сохранить'}
           </Button>
-          <Button disabled={!dirty} onClick={() => setDraft(null)}>Отменить</Button>
+          <Button disabled={!dirty} onClick={discard}>Отменить</Button>
         </div>
 
         {save.error && <ErrorBox error={save.error as Error} />}
 
         {section === SCALARS_SECTION ? (
           <ScalarSettings
+            key={revision}
             device={current}
             onChange={(key, value) =>
               setDraft(setAtPath(current, ['dcmDevice', 'dcmArchiveDevice', key], value))}
           />
         ) : active ? (
           <SectionEditor
-            key={active.path.join('/')}
+            key={`${active.path.join('/')}#${revision}`}
             section={active}
             items={sectionItems(current, active)}
             onChange={(items) => setDraft(setAtPath(current, active.path, items))}

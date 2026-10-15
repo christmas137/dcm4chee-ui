@@ -163,7 +163,7 @@ export function DeviceEditor({ deviceName, onChanged, onClose, onOpenAe }: Props
                 ({Math.round(JSON.stringify(current).length / 1024)} КБ) — правьте её по разделам.
               </p>
             ) : (
-              <JsonEditor value={current} onChange={(next) => setDraft(next as Device)} rows={22} />
+              <JsonEditor label="JSON устройства" value={current} onChange={(next) => setDraft(next as Device)} rows={22} />
             )
           )}
         </section>

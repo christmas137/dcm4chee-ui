@@ -54,7 +54,7 @@ function qidoParams(params: QidoParams, offset: number, orderby: string): Params
   return { ...params, includefield: INCLUDE_FIELDS, offset, limit: PAGE_SIZE, orderby }
 }
 
-interface StudiesPage {
+export interface StudiesPage {
   rows: StudyRow[]
   offset: number
   /** Какой из вариантов трактовки запроса сработал. */
@@ -64,7 +64,7 @@ interface StudiesPage {
   params: QidoParams
 }
 
-interface PageParam {
+export interface PageParam {
   offset: number
   variantIndex: number
 }
@@ -73,7 +73,7 @@ interface PageParam {
  * Первая страница перебирает варианты трактовки запроса, пока не найдёт непустой результат;
  * следующие страницы идут уже по выбранному варианту.
  */
-async function fetchStudiesPage(
+export async function fetchStudiesPage(
   aet: string,
   variants: QueryVariant[],
   orderby: string,
@@ -99,7 +99,7 @@ async function fetchStudiesPage(
       }
     }
   }
-  /* istanbul ignore next — цикл всегда возвращает результат на последней итерации */
+  // Сюда попадаем, только если вариантов нет вовсе: parseQuery всегда даёт хотя бы один.
   throw new Error('нет вариантов запроса')
 }
 

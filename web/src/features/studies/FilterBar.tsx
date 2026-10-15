@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
-import type { StudiesSearch } from '../../app/router'
+import type { StudiesSearch } from '../../app/searchParams'
 import { DATE_PRESETS } from './filters'
 
 const MODALITIES = ['CT', 'MR', 'US', 'CR', 'DX', 'MG', 'PT', 'NM', 'XA', 'SR'] as const

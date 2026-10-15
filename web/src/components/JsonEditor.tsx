@@ -7,11 +7,13 @@ import { useEffect, useState } from 'react'
  * а всё остальное, что умеет dcm4chee, остаётся доступным здесь же.
  */
 export function JsonEditor({
-  value, onChange, rows = 16,
+  value, onChange, rows = 16, label = 'JSON',
 }: {
   value: unknown
   onChange(next: unknown): void
   rows?: number
+  /** Подпись для экранных читалок и тестов. */
+  label?: string
 }) {
   const [text, setText] = useState(() => JSON.stringify(value, null, 2))
   const [error, setError] = useState<string | null>(null)
@@ -22,6 +24,7 @@ export function JsonEditor({
   return (
     <div className="flex flex-col gap-1">
       <textarea
+        aria-label={label}
         value={text}
         rows={rows}
         spellCheck={false}

@@ -1,7 +1,7 @@
 /** Слияние фильтров из чипов с тем, что разобрано из строки поиска. */
 import { formatDA } from '../../api/dicom'
 import type { QidoParams, QueryVariant } from '../../api/omnibox'
-import type { StudiesSearch } from '../../app/router'
+import type { StudiesSearch } from '../../app/searchParams'
 
 export const DEFAULT_SORT = '-StudyDate,-StudyTime'
 
