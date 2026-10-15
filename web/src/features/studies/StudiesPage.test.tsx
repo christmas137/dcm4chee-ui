@@ -38,15 +38,15 @@ describe('список исследований', () => {
   it('показывает строки и итог по количеству и объёму', async () => {
     standardArchive().install()
     renderApp('/studies')
-    expect(await screen.findByText('3 исслед.')).toBeInTheDocument()
+    expect(await screen.findByText('3 исследования')).toBeInTheDocument()
     // 1669 + 2448 + 83 КБ
-    expect(screen.getByText('4.1 МБ')).toBeInTheDocument()
+    expect(await screen.findByText('4,1 МБ')).toBeInTheDocument()
     const ivanov = screen.getByText('Иванов Иван Иванович').closest('[role="row"]') as HTMLElement
     expect(within(ivanov).getByText('P-1001')).toBeInTheDocument()
     expect(within(ivanov).getByText('12.09.2026 08:47')).toBeInTheDocument()
-    expect(within(ivanov).getByText('12.03.1964 · M')).toBeInTheDocument()
+    expect(within(ivanov).getByTitle('12.03.1964, М')).toBeInTheDocument()
     expect(within(ivanov).getByText('ACC20000')).toBeInTheDocument()
-    expect(within(ivanov).getByText('1.6 МБ')).toBeInTheDocument()
+    expect(within(ivanov).getByText('1,6 МБ')).toBeInTheDocument()
   })
 
   it('пустой результат (204) — подсказка, а не пустой экран', async () => {
@@ -83,7 +83,9 @@ describe('омнибокс', () => {
     await waitFor(() => expect(rowNames()).toEqual(['Петрова Мария Сергеевна']))
     expect(lastSearch(archive).get('PatientName')).toBe('*Петрова*')
     expect(search().q).toBe('Петрова')
-    expect(screen.getByText('запрос: пациент *Петрова*')).toBeInTheDocument()
+    const understood = screen.getByRole('list', { name: 'Как понят запрос' })
+    expect(within(understood).getByText('пациент')).toBeInTheDocument()
+    expect(within(understood).getByText('*Петрова*')).toBeInTheDocument()
   })
 
   it('номер, не найденный как назначение, ищется как ID пациента — с пояснением', async () => {
@@ -133,6 +135,39 @@ describe('омнибокс', () => {
     await screen.findByText('Иванов Иван Иванович')
     await user.keyboard('/')
     expect(screen.getByPlaceholderText(/^Поиск:/)).toHaveFocus()
+  })
+})
+
+describe('строка интерпретации запроса', () => {
+  it('без запроса — подсказка, как искать', async () => {
+    standardArchive().install()
+    renderApp('/studies')
+    expect(await screen.findByText(/Все исследования\. Пишите, что помните/)).toBeInTheDocument()
+  })
+
+  it('показывает то, что реально ушло в архив, включая переключатели', async () => {
+    standardArchive().install()
+    const { user } = renderApp('/studies?q=Иванов')
+    const understood = await screen.findByRole('list', { name: 'Как понят запрос' })
+    expect(within(understood).getByText('*Иванов*')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'CT' }))
+    await waitFor(() => expect(within(screen.getByRole('list', { name: 'Как понят запрос' })).getByText('модальность')).toBeInTheDocument())
+  })
+
+  it('диапазон дат — по-человечески', async () => {
+    standardArchive().install()
+    renderApp('/studies?q=2026-03')
+    const understood = await screen.findByRole('list', { name: 'Как понят запрос' })
+    expect(within(understood).getByText('01.03.2026 – 31.03.2026')).toBeInTheDocument()
+  })
+
+  it('сработавший запасной вариант виден в строке', async () => {
+    standardArchive().install()
+    renderApp('/studies?q=P-1002')
+    const understood = await screen.findByRole('list', { name: 'Как понят запрос' })
+    expect(within(understood).getByText('ID пациента')).toBeInTheDocument()
+    expect(within(understood).getByText('найдено по ID пациента')).toBeInTheDocument()
   })
 })
 

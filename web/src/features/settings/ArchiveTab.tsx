@@ -83,7 +83,7 @@ export function ArchiveTab({
           </button>
           {groups.map(([group, items]) => (
             <div key={group} className="mt-2">
-              <p className="px-3 py-0.5 text-[10px] tracking-wide text-muted uppercase">{group}</p>
+              <p className="px-3 pt-1 pb-0.5 text-[11.5px] font-semibold text-muted">{group}</p>
               {items.map((item) => {
                 const key = item.path.join('/')
                 const count = sectionItems(current, item).length

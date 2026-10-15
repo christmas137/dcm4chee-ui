@@ -2,11 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { parseQuery } from '../../api/omnibox'
 import { formatBytes } from '../../api/dicom'
+import { Omnibox } from '../../app/Omnibox'
+import { countLabel } from '../../lib/plural'
 import { useStudySearch, useStudyTotals } from '../../api/studies'
 import type { StudyRow } from '../../api/studies'
 import { useArchive } from '../../app/ArchiveContext'
 import { EmptyState, ErrorBox, Spinner, WarningBar } from '../../components/ui'
-import { FilterBar } from './FilterBar'
+import { DateFilter, ModalityFilter } from './FilterBar'
+import { QueryTokens } from './QueryTokens'
 import { StudyPanel } from './StudyPanel'
 import { StudyTable } from './StudyTable'
 import { DEFAULT_SORT, withUiFilters } from './filters'
@@ -115,27 +118,31 @@ export function StudiesPage() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <FilterBar search={search} />
-      {warning && <WarningBar text={`Архив вернул неполный ответ: ${warning}`} />}
-
-      <div className="flex h-7 shrink-0 items-center gap-3 border-b border-line px-3 text-[11px] text-muted">
-        {query.isPending ? (
-          <Spinner />
-        ) : (
-          <>
-            <span className="text-fg">
-              {totals.data ? `${totals.data.count} исслед.` : `${rows.length} исслед.`}
-            </span>
-            {totals.data && <span>{formatBytes(totals.data.size)}</span>}
-            {hint && <span className="text-warn">найдено {hint}</span>}
-            {parsed.explain.length > 0 && (
-              <span className="truncate" title={parsed.explain.join(' · ')}>
-                запрос: {parsed.explain.join(' · ')}
-              </span>
+      <section aria-label="Поиск исследований" className="shrink-0 border-b border-line bg-panel px-4 pt-3 pb-2.5">
+        <div className="flex items-center gap-3">
+          <Omnibox value={search.q ?? ''} />
+          <DateFilter search={search} />
+          <div aria-live="polite" className="ml-auto shrink-0 text-right leading-tight">
+            {query.isPending ? (
+              <Spinner />
+            ) : (
+              <>
+                <p className="text-[14px] font-semibold">
+                  {countLabel(totals.data?.count ?? rows.length, 'исследование', 'исследования', 'исследований')}
+                </p>
+                <p className="text-[12px] text-muted">{totals.data ? formatBytes(totals.data.size) : '\u00a0'}</p>
+              </>
             )}
-          </>
-        )}
-      </div>
+          </div>
+        </div>
+        <div className="mt-2.5 flex min-h-6 items-center gap-4">
+          <div className="min-w-0 flex-1">
+            <QueryTokens params={firstPage?.params} hint={hint} />
+          </div>
+          <ModalityFilter search={search} />
+        </div>
+      </section>
+      {warning && <WarningBar text={`Архив вернул неполный ответ: ${warning}`} />}
 
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">{results}</div>

@@ -6,7 +6,7 @@ import { SearchIcon, CloseIcon } from '../components/icons'
  * Единственная строка поиска. Ввод разбирается в QIDO-параметры (см. api/omnibox.ts),
  * поэтому никаких форм с двумя десятками полей, как в штатном UI.
  */
-export function Omnibox({ value }: { value: string }) {
+export function Omnibox({ value, size = 'large' }: { value: string; size?: 'large' | 'compact' }) {
   const navigate = useNavigate()
   const inputRef = useRef<HTMLInputElement>(null)
   const [text, setText] = useState(value)
@@ -41,9 +41,13 @@ export function Omnibox({ value }: { value: string }) {
         event.preventDefault()
         submit(text.trim())
       }}
-      className="relative flex-1"
+      className={`relative ${size === 'large' ? 'w-full max-w-3xl' : 'w-full max-w-md'}`}
     >
-      <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted" />
+      <SearchIcon
+        className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted ${
+          size === 'large' ? 'left-3 size-[18px]' : 'left-2.5 size-4'
+        }`}
+      />
       <input
         ref={inputRef}
         value={text}
@@ -51,7 +55,9 @@ export function Omnibox({ value }: { value: string }) {
         placeholder="Поиск: фамилия, дата, модальность, № назначения…"
         spellCheck={false}
         autoComplete="off"
-        className="h-8 w-full rounded-md border border-line bg-panel pr-16 pl-8 text-[13px] placeholder:text-muted focus-visible:border-accent"
+        className={`w-full rounded-md border border-line bg-panel pr-16 placeholder:text-muted focus-visible:border-accent ${
+          size === 'large' ? 'h-10 pl-10 text-[15px]' : 'h-8 pl-8 text-[13px]'
+        }`}
       />
       {text ? (
         <button

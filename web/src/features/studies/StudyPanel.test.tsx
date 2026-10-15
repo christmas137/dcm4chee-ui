@@ -19,7 +19,9 @@ describe('панель исследования: открытие и закры�
     const aside = await screen.findByRole('complementary', { name: 'Исследование' })
     expect(await within(aside).findByRole('heading', { name: 'Иванов Иван Иванович' })).toBeInTheDocument()
     expect(within(aside).getByText('P-1001')).toBeInTheDocument()
-    expect(within(aside).getByText(/№ ACC20000 · 3 серии · 49 снимков · 1\.6 МБ/)).toBeInTheDocument()
+    expect(within(aside).getByText('ACC20000')).toBeInTheDocument()
+    expect(within(aside).getByText('3 серии, 49 снимков, 1,6 МБ')).toBeInTheDocument()
+    expect(within(aside).getByText('мужской')).toBeInTheDocument()
     // Заголовок панели запрашивается отдельно — по UID, а не берётся из списка.
     const studyQuery = archive.calls('GET', '/aets/DCM4CHEE/rs/studies')
       .find((request) => request.params.get('StudyInstanceUID') === IVANOV_CHEST.uid)
@@ -70,9 +72,9 @@ describe('панель исследования: серии и снимки', ()
     const items = await within(await screen.findByRole('complementary', { name: 'Исследование' }))
       .findAllByRole('button', { expanded: false })
     expect(items.map((item) => item.textContent)).toEqual([
-      expect.stringMatching(/#1 Topogram.*CT · 1 снимок/),
-      expect.stringMatching(/#2 Chest 1\.0mm.*CT · 24 снимка/),
-      expect.stringMatching(/#3 Chest 5\.0mm.*CT · 24 снимка/),
+      expect.stringMatching(/#1\s*Topogram.*CT.*1 снимок/),
+      expect.stringMatching(/#2\s*Chest 1\.0mm.*CT.*24 снимка/),
+      expect.stringMatching(/#3\s*Chest 5\.0mm.*CT.*24 снимка/),
     ])
   })
 
@@ -140,7 +142,7 @@ describe('панель исследования: метаданные', () => {
     await user.click(await within(aside).findByRole('button', { name: 'Снимок 5' }))
 
     expect(search()).toMatchObject({ pane: 'meta', series: target.uid, sop: `${target.uid}.5` })
-    expect(await within(aside).findByText('Серия #2 Chest 1.0mm · снимок #5')).toBeInTheDocument()
+    expect(await within(aside).findByText('Серия #2 Chest 1.0mm, снимок #5')).toBeInTheDocument()
     expect(archive.calls('GET', /\/metadata$/).map((r) => r.path)).toEqual([
       `${SERIES_PATH}/${target.uid}/instances/${target.uid}.5/metadata`,
     ])
@@ -153,7 +155,7 @@ describe('панель исследования: метаданные', () => {
 
     await user.click(within(aside).getByRole('tab', { name: 'Метаданные' }))
 
-    expect(await within(aside).findByText('Серия #1 Topogram · снимок #1')).toBeInTheDocument()
+    expect(await within(aside).findByText('Серия #1 Topogram, снимок #1')).toBeInTheDocument()
     const firstInstance = archive.calls('GET', /\/instances$/)[0]
     expect(firstInstance.params.get('limit')).toBe('1')
     expect(firstInstance.params.get('orderby')).toBe('InstanceNumber')
@@ -213,7 +215,7 @@ describe('панель исследования: метаданные', () => {
     const archive = standardArchive().install()
     const target = IVANOV_CHEST.series![2]
     renderApp(studyUrl(`&pane=meta&series=${target.uid}&sop=${target.uid}.7`))
-    expect(await screen.findByText('Серия #3 Chest 5.0mm · снимок #7')).toBeInTheDocument()
+    expect(await screen.findByText('Серия #3 Chest 5.0mm, снимок #7')).toBeInTheDocument()
     // Снимок известен из ссылки — «первый снимок серии» не запрашивается.
     expect(archive.calls('GET', /\/instances$/)).toHaveLength(0)
   })

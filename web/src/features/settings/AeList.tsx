@@ -8,7 +8,7 @@ function role(ae: AeSummary): string {
   const parts = []
   if (ae.dicomAssociationAcceptor) parts.push('принимает')
   if (ae.dicomAssociationInitiator) parts.push('отправляет')
-  return parts.join(' · ') || '—'
+  return parts.join(', ') || '—'
 }
 
 function matches(ae: AeSummary, query: string): boolean {

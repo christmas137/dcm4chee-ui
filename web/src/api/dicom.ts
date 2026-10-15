@@ -130,7 +130,8 @@ export function formatBytes(bytes: number | undefined): string {
     value /= 1024
     unit++
   }
-  return `${value < 10 && unit > 0 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`
+  // Десятичная запятая — интерфейс русский.
+  return `${value < 10 && unit > 0 ? value.toFixed(1).replace('.', ',') : Math.round(value)} ${units[unit]}`
 }
 
 /** `00100010` → `(0010,0010)` — в таком виде тег ищется в словаре dcmjs. */

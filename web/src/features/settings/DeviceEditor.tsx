@@ -4,6 +4,7 @@ import type { Device, NetworkConnection } from '../../api/devices'
 import { Button, Checkbox, Field, TextInput } from '../../components/form'
 import { JsonEditor } from '../../components/JsonEditor'
 import { ErrorBox, Spinner } from '../../components/ui'
+import { countLabel } from '../../lib/plural'
 
 const TLS_CIPHERS = ['TLS_RSA_WITH_AES_128_CBC_SHA', 'SSL_RSA_WITH_3DES_EDE_CBC_SHA']
 
@@ -47,7 +48,7 @@ export function DeviceEditor({ deviceName, onChanged, onClose, onOpenAe }: Props
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-medium">{current.dicomDeviceName}</p>
           <p className="truncate text-[11px] text-muted">
-            {connections.length} соединений · {current.dicomNetworkAE?.length ?? 0} AE
+            {countLabel(connections.length, 'соединение', 'соединения', 'соединений')}, {current.dicomNetworkAE?.length ?? 0} AE
           </p>
         </div>
         <Button tone="primary" disabled={!dirty || save.isPending} onClick={() =>

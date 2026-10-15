@@ -22,7 +22,7 @@ describe('список AE', () => {
     const row = (await screen.findByRole('cell', { name: 'DCM4CHEE' })).closest('tr')!
     expect(within(row).getByText('dcm4chee-arc')).toBeInTheDocument()
     expect(within(row).getByText('arc:11112, arc:2762 TLS')).toBeInTheDocument()
-    expect(within(row).getByText('принимает · отправляет')).toBeInTheDocument()
+    expect(within(row).getByText('принимает, отправляет')).toBeInTheDocument()
     expect(screen.getByRole('cell', { name: 'STORESCP' })).toBeInTheDocument()
     expect(screen.getByText('3 из 3')).toBeInTheDocument()
   })

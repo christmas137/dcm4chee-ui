@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useReloadConfig } from '../../api/devices'
 import { Button } from '../../components/form'
+import { Segmented } from '../../components/Segmented'
 import { AeEditor } from './AeEditor'
 import { ArchiveTab } from './ArchiveTab'
 import { AeList } from './AeList'
@@ -36,21 +37,13 @@ export function SettingsPage() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center gap-2 border-b border-line bg-panel px-3 py-2">
-        {TABS.map((item) => (
-          <button
-            key={item.key}
-            type="button"
-            onClick={() => update({ tab: item.key, device: undefined, ae: undefined })}
-            className={`h-6 rounded-full border px-2.5 text-[11px] ${
-              tab === item.key
-                ? 'border-accent bg-accent/15 text-accent'
-                : 'border-line text-muted hover:text-fg'
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
+      <div className="flex items-center gap-2 border-b border-line bg-panel px-4 py-2.5">
+        <Segmented
+          label="Раздел конфигурации"
+          options={TABS.map((item) => ({ value: item.key, label: item.label }))}
+          value={tab}
+          onChange={(key) => update({ tab: key, device: undefined, ae: undefined })}
+        />
         <div className="flex-1" />
         {tab !== 'archive' && (
           <Button tone="primary" onClick={() => setCreating(true)}>+ Новое подключение</Button>

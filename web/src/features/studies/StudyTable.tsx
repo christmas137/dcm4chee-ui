@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react'
+import type { ReactNode } from 'react'
+import { ModalityList } from '../../components/Modality'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { StudyRow } from '../../api/studies'
 import { formatBytes, formatDateTime } from '../../api/dicom'
@@ -13,16 +15,28 @@ interface Column {
   align?: 'right'
   /** Прячется, когда рядом открыта панель исследования и места мало. */
   optional?: boolean
+  /** Текст ячейки — он же подсказка при наведении. */
   render(row: StudyRow): string
+  /** Если ячейке нужна разметка богаче текста. */
+  cell?(row: StudyRow): ReactNode
 }
+
+const SEX_SHORT: Record<string, string> = { M: 'М', F: 'Ж', O: 'Др.' }
 
 const COLUMNS: Column[] = [
   { key: 'patient', title: 'Пациент', width: 'minmax(190px,1.8fr)', sort: 'PatientName', render: (r) => r.patientName },
   { key: 'pid', title: 'ID пациента', width: '120px', sort: 'PatientID', render: (r) => r.patientID },
-  { key: 'birth', title: 'ДР / пол', width: '120px', sort: 'PatientBirthDate', optional: true,
-    render: (r) => [formatDateTime(r.birthDate), r.sex].filter(Boolean).join(' · ') },
+  { key: 'birth', title: 'ДР, пол', width: '120px', sort: 'PatientBirthDate', optional: true,
+    render: (r) => [formatDateTime(r.birthDate), SEX_SHORT[r.sex ?? ''] ?? r.sex].filter(Boolean).join(', '),
+    cell: (r) => (
+      <>
+        {formatDateTime(r.birthDate)}
+        {r.sex && <span className="ml-2">{SEX_SHORT[r.sex] ?? r.sex}</span>}
+      </>
+    ) },
   { key: 'date', title: 'Дата', width: '130px', sort: 'StudyDate', render: (r) => formatDateTime(r.studyDate, r.studyTime) },
-  { key: 'mod', title: 'Мод.', width: '86px', render: (r) => r.modalities.join(', ') },
+  { key: 'mod', title: 'Мод.', width: '96px', render: (r) => r.modalities.join(', '),
+    cell: (r) => <ModalityList modalities={r.modalities} /> },
   { key: 'desc', title: 'Описание', width: 'minmax(180px,2fr)', sort: 'StudyDescription', render: (r) => r.description ?? '' },
   { key: 'acc', title: '№ назначения', width: '120px', sort: 'AccessionNumber', optional: true, render: (r) => r.accession ?? '' },
   { key: 'series', title: 'Сер.', width: '56px', align: 'right', optional: true, render: (r) => String(r.series ?? '') },
@@ -32,7 +46,7 @@ const COLUMNS: Column[] = [
 ]
 
 const COMPACT_COLUMNS = COLUMNS.filter((column) => !column.optional)
-const ROW_HEIGHT = 30
+const ROW_HEIGHT = 32
 
 /** Клик по столбцу: по убыванию → по возрастанию → как было. */
 export function nextSort(current: string, field: string): string | undefined {
@@ -86,7 +100,7 @@ export function StudyTable({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div
-        className="grid shrink-0 items-center gap-x-3 border-b border-line bg-panel px-3 text-[11px] font-medium text-muted"
+        className="grid shrink-0 items-center gap-x-3 border-b border-line bg-bg px-4 text-[11.5px] text-muted"
         style={{ gridTemplateColumns: grid, height: 28 }}
       >
         {columns.map((column) => {
@@ -124,8 +138,9 @@ export function StudyTable({
                 onClick={() => onSelect(item.index)}
                 onDoubleClick={() => onActivate(row)}
                 className={[
-                  'absolute inset-x-0 grid cursor-default items-center gap-x-3 border-b border-line/50 px-3 text-[12px]',
-                  isSelected ? 'bg-accent/12 text-fg' : 'hover:bg-panel-2',
+                  'absolute inset-x-0 grid cursor-default items-center gap-x-3 border-b border-line/50 px-4 text-[13px]',
+                  // Выделение — яркостью и чертой слева, как подсвеченный снимок на негатоскопе.
+                  isSelected ? 'bg-panel-2 shadow-[inset_3px_0_0_var(--color-accent)]' : 'hover:bg-panel-2/50',
                 ].join(' ')}
                 style={{
                   gridTemplateColumns: grid,
@@ -141,11 +156,10 @@ export function StudyTable({
                       'truncate',
                       column.align === 'right' ? 'text-right tabular-nums' : '',
                       column.key === 'patient' ? 'font-medium' : '',
-                      column.key === 'pid' || column.key === 'acc' ? 'font-mono text-[11px]' : '',
-                      column.key === 'desc' || column.key === 'birth' ? 'text-muted' : '',
+                      column.key === 'desc' || column.key === 'birth' || column.key === 'acc' ? 'text-muted' : '',
                     ].join(' ')}
                   >
-                    {column.render(row)}
+                    {column.cell ? column.cell(row) : column.render(row)}
                   </span>
                 ))}
               </div>

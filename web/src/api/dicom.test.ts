@@ -38,7 +38,7 @@ describe('DICOM JSON helpers', () => {
 
   it('форматирует размер', () => {
     expect(formatBytes(0)).toBe('0 Б')
-    expect(formatBytes(1536)).toBe('1.5 КБ')
+    expect(formatBytes(1536)).toBe('1,5 КБ') // десятичная запятая
     expect(formatBytes(21250688)).toBe('20 МБ')
     expect(formatBytes(undefined)).toBe('')
   })

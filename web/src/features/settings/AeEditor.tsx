@@ -124,7 +124,7 @@ export function AeEditor({ deviceName, aeTitle, onChanged, onClose }: Props) {
                 label={
                   <span>
                     <span className="font-mono">{describeConnection(connection)}</span>
-                    {connection.cn && <span className="text-muted"> · {connection.cn}</span>}
+                    {connection.cn && <span className="ml-2 text-muted">{connection.cn}</span>}
                   </span>
                 }
               />
