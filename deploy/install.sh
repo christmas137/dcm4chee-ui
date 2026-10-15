@@ -107,24 +107,6 @@ random_secret() {
   fi
 }
 
-detect_host() {
-  local ip=""
-  if command -v hostname >/dev/null 2>&1; then ip="$(hostname -I 2>/dev/null | awk '{print $1}')"; fi
-  if [ -z "$ip" ] && command -v ip >/dev/null 2>&1; then
-    ip="$(ip route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") print $(i + 1)}')"
-  fi
-  echo "${ip:-127.0.0.1}"
-}
-
-# Значение ключа в .env: set_env KEY VALUE (заменяет строку KEY=...).
-set_env() {
-  local key="$1" value="$2" tmp
-  tmp="$(mktemp)"
-  awk -v k="$key" -v v="$value" 'BEGIN { FS = OFS = "=" } $1 == k { print k, v; next } { print }' "$ENV_FILE" >"$tmp"
-  cat "$tmp" >"$ENV_FILE"
-  rm -f "$tmp"
-}
-
 create_env() {
   step "Настройки"
   echo "$MODE" >"$MODE_FILE"

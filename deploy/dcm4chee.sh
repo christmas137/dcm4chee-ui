@@ -46,28 +46,6 @@ cmd_start() {
   ok "всё отвечает"
 }
 
-# LDIF → записи по возрастанию глубины DN (число RDN), внутри уровня — в исходном порядке.
-# DN в base64 (dn::, бывает при кириллице) раскодируется для подсчёта.
-ldif_parents_first() {
-  awk '
-    BEGIN { RS = ""; ORS = "\n\n" }
-    {
-      dn = ""
-      n = split($0, lines, "\n")
-      for (i = 1; i <= n; i++) {
-        if (lines[i] ~ /^dn:: /) { cmd = "printf %s \"" substr(lines[i], 6) "\" | base64 -d"; cmd | getline dn; close(cmd); break }
-        if (lines[i] ~ /^dn: /) { dn = substr(lines[i], 5); break }
-      }
-      plain = dn
-      gsub(/\\,/, "", plain)
-      depth[NR] = gsub(/,/, ",", plain)
-      record[NR] = $0
-      if (depth[NR] > max) max = depth[NR]
-    }
-    END { for (d = 0; d <= max; d++) for (i = 1; i <= NR; i++) if (depth[i] == d) print record[i] }
-  '
-}
-
 # Резервная копия: база (pg_dump), конфигурация (LDAP целиком), настройки (.env).
 # Снимки (--with-storage) — опционально: их объём может быть огромным, и обычно их копируют
 # средствами хранилища (rsync, снапшоты).

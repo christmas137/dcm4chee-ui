@@ -60,5 +60,6 @@ ok "$(du -h "$STAGE/dcm4chee-offline/deploy/images/dcm4chee-images.tar" | cut -f
 step "Собираем пакет"
 cp "$DEPLOY_DIR"/{install.sh,dcm4chee.sh,lib.sh,compose.yaml,compose.ui-only.yaml,.env.example,README.md} \
   "$STAGE/dcm4chee-offline/deploy/"
-tar -C "$STAGE" -czf "$OUT/$NAME.tar.gz" dcm4chee-offline
+# Без расширенных атрибутов: macOS добавляет свои (com.apple.provenance), GNU tar на сервере на них ругается.
+COPYFILE_DISABLE=1 tar --no-xattrs -C "$STAGE" -czf "$OUT/$NAME.tar.gz" dcm4chee-offline
 ok "$OUT/$NAME.tar.gz ($(du -h "$OUT/$NAME.tar.gz" | cut -f1))"
