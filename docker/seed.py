@@ -19,6 +19,10 @@ import uuid
 import numpy as np
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.uid import (
+    EncapsulatedPDFStorage,
+    JPEG2000Lossless,
+    JPEGLSLossless,
+    RLELossless,
     CTImageStorage,
     MRImageStorage,
     UltrasoundImageStorage,
@@ -154,6 +158,82 @@ def make_instance(*, patient, study, series, modality, rows, cols, idx, n_slices
     return ds
 
 
+def tiny_pdf(text: str) -> bytes:
+    """Минимальный валидный PDF с одной строкой текста — без внешних библиотек."""
+    stream = f"BT /F1 24 Tf 72 720 Td ({text}) Tj ET".encode()
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R "
+        b"/Resources << /Font << /F1 5 0 R >> >> >>",
+        b"<< /Length %d >>\nstream\n" % len(stream) + stream + b"\nendstream",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+    out = bytearray(b"%PDF-1.4\n")
+    offsets = []
+    for number, body in enumerate(objects, start=1):
+        offsets.append(len(out))
+        out += b"%d 0 obj\n" % number + body + b"\nendobj\n"
+    xref = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objects) + 1)
+    for offset in offsets:
+        out += b"%010d 00000 n \n" % offset
+    out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objects) + 1, xref)
+    return bytes(out)
+
+
+def pdf_instance(*, patient, study, series_uid) -> Dataset:
+    name, pid, birth, sex = patient
+    study_uid, study_date, study_time, accession, study_desc = study
+    sop_uid = generate_uid()
+    ds = Dataset()
+    ds.file_meta = FileMetaDataset()
+    ds.file_meta.MediaStorageSOPClassUID = EncapsulatedPDFStorage
+    ds.file_meta.MediaStorageSOPInstanceUID = sop_uid
+    ds.file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+    ds.file_meta.ImplementationClassUID = generate_uid()
+    ds.SpecificCharacterSet = "ISO_IR 192"
+    ds.SOPClassUID = EncapsulatedPDFStorage
+    ds.SOPInstanceUID = sop_uid
+    ds.PatientName, ds.PatientID, ds.PatientBirthDate, ds.PatientSex = name, pid, birth, sex
+    ds.StudyInstanceUID, ds.StudyDate, ds.StudyTime = study_uid, study_date, study_time
+    ds.AccessionNumber, ds.StudyDescription, ds.StudyID = accession, study_desc, accession[-5:]
+    ds.ReferringPhysicianName = ""
+    ds.SeriesInstanceUID, ds.SeriesNumber, ds.SeriesDescription = series_uid, 90, "Заключение (PDF)"
+    ds.Modality = "DOC"
+    ds.InstanceNumber = 1
+    ds.ConversionType = "WSD"
+    ds.ContentDate, ds.ContentTime, ds.AcquisitionDateTime = study_date, study_time, study_date + study_time
+    ds.BurnedInAnnotation = "YES"
+    ds.DocumentTitle = "Заключение"
+    ds.ConceptNameCodeSequence = []
+    ds.MIMETypeOfEncapsulatedDocument = "application/pdf"
+    pdf = tiny_pdf("dcm4chee test report")
+    ds.EncapsulatedDocument = pdf + (b"\0" if len(pdf) % 2 else b"")
+    ds.EncapsulatedDocumentLength = len(pdf)
+    return ds
+
+
+def extras_study(rnd, rng) -> list[Dataset]:
+    """Исследование для проверки вьюера: сжатые форматы (JS- и WASM-декодеры) и PDF-документ."""
+    patient = ("Форматов^Проверка", "P-9000", "19800101", "O")
+    today = dt.date.today().strftime("%Y%m%d")
+    study = (generate_uid(), today, "120000", "ACC-FORMATS", "Проверка форматов сжатия")
+    datasets = []
+    for number, (uid, title) in enumerate(
+        [(RLELossless, "RLE Lossless"), (JPEG2000Lossless, "JPEG 2000 Lossless"), (JPEGLSLossless, "JPEG-LS Lossless")],
+        start=1,
+    ):
+        series = (generate_uid(), number, title)
+        for k in range(12):
+            ds = make_instance(patient=patient, study=study, series=series, modality="CT",
+                               rows=128, cols=128, idx=k, n_slices=12, rng=rng)
+            ds.compress(uid)
+            datasets.append(ds)
+    datasets.append(pdf_instance(patient=patient, study=study, series_uid=generate_uid()))
+    return datasets
+
+
 def stow(url: str, aet: str, datasets: list[Dataset]) -> tuple[int, str]:
     boundary = uuid.uuid4().hex
     body = io.BytesIO()
@@ -185,6 +265,8 @@ def main() -> int:
     ap.add_argument("--studies", type=int, default=12, help="сколько исследований создать")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--acc-base", type=int, default=20000, help="с какого номера нумеровать назначения")
+    ap.add_argument("--extras", action="store_true",
+                    help="только исследование «Проверка форматов»: RLE, JPEG 2000, JPEG-LS и PDF")
     ap.add_argument("--slices", type=int, default=0,
                     help="ограничить число срезов в серии (для быстрой заливки объёма)")
     args = ap.parse_args()
@@ -192,6 +274,12 @@ def main() -> int:
     rng = np.random.default_rng(args.seed)
     rnd = random.Random(args.seed)
     today = dt.date.today()
+
+    if args.extras:
+        datasets = extras_study(rnd, rng)
+        status, snippet = stow(args.url, args.aet, datasets)
+        print(f"Проверка форматов: {len(datasets)} объектов -> HTTP {status} {snippet[:120] if status >= 300 else ''}")
+        return 0
 
     total_instances = 0
     for i in range(args.studies):

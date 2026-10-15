@@ -33,6 +33,10 @@ export interface InstanceFixture {
   number: number
   sopClass?: string
   frames?: number
+  /** Синтаксис хранения (AvailableTransferSyntaxUID). По умолчанию — несжатый. */
+  transferSyntax?: string
+  /** Положение среза по z; по умолчанию — номер × 5 мм. */
+  z?: number
 }
 
 const el = (vr: string, ...values: unknown[]) => ({ vr, Value: values })
@@ -81,6 +85,7 @@ export function instanceJson(study: StudyFixture, series: SeriesFixture, instanc
     '00280011': el('US', 128),
   }
   if (instance.frames) ds['00280008'] = el('IS', String(instance.frames))
+  ds['00083002'] = el('UI', instance.transferSyntax ?? '1.2.840.10008.1.2.1')
   return ds
 }
 
@@ -100,6 +105,8 @@ export function metadataJson(study: StudyFixture, series: SeriesFixture, instanc
       ],
     },
     '00280030': el('DS', 0.6, 0.6),
+    '00200032': el('DS', -120, -120, instance.z ?? instance.number * 5),
+    '00200037': el('DS', 1, 0, 0, 0, 1, 0),
     '7FE00010': { vr: 'OW', BulkDataURI: `http://arc/studies/${study.uid}/bulk/7FE00010` },
   }
 }
@@ -235,5 +242,31 @@ export function standardArchive(studies: StudyFixture[] = STUDIES): FakeArchive 
     return [metadataJson(study, item, instance)]
   })
 
+  archive.on('GET', /^\/aets\/[^/]+\/rs\/studies\/[^/]+\/series\/[^/]+\/metadata$/, ({ path }) => {
+    const parts = path.split('/')
+    const study = find(parts[5])
+    const item = study?.series?.find((s) => s.uid === parts[7])
+    if (!study || !item) return json('нет такой серии', { status: 404 })
+    return item.instances.map((instance) => metadataJson(study, item, instance))
+  })
+
   return archive
+}
+
+/** Исследование с документами: PDF и структурированный отчёт — для веток вьюера «не картинка». */
+export const DOCUMENTS: StudyFixture = {
+  uid: '1.2.3.900',
+  name: 'Форматов^Проверка',
+  pid: 'P-9000',
+  date: '20260912',
+  desc: 'Проверка документов',
+  modalities: ['DOC', 'SR', 'MR'],
+  series: [
+    { uid: '1.2.3.900.1', number: 1, desc: 'T2 ax', modality: 'MR',
+      instances: [{ sop: '1.2.3.900.1.1', number: 1 }, { sop: '1.2.3.900.1.2', number: 2 }] },
+    { uid: '1.2.3.900.2', number: 90, desc: 'Заключение (PDF)', modality: 'DOC',
+      instances: [{ sop: '1.2.3.900.2.1', number: 1, sopClass: '1.2.840.10008.5.1.4.1.1.104.1' }] },
+    { uid: '1.2.3.900.3', number: 91, desc: 'Протокол', modality: 'SR',
+      instances: [{ sop: '1.2.3.900.3.1', number: 1, sopClass: '1.2.840.10008.5.1.4.1.1.88.33' }] },
+  ],
 }

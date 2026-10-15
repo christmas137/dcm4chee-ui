@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { thumbnailUrl, useInstances } from '../../api/series'
 import type { SeriesRow } from '../../api/series'
 import { ModalityTag } from '../../components/Modality'
@@ -22,7 +23,15 @@ export function SeriesList({ aet, studyUID, series, openSeries, selectedSop, onT
       {series.map((item) => {
         const open = item.seriesUID === openSeries
         return (
-          <li key={item.seriesUID}>
+          <li key={item.seriesUID} className="relative">
+            <Link
+              to="/view"
+              search={{ study: studyUID, series: item.seriesUID }}
+              aria-label={`Смотреть серию ${item.number ?? ''} ${item.description ?? ''}`.replace(/\s+/g, ' ').trim()}
+              className="absolute top-1/2 right-10 z-10 -translate-y-1/2 rounded-md border border-line bg-panel px-2 py-1 text-[11.5px] text-muted hover:text-fg"
+            >
+              Смотреть
+            </Link>
             <button
               type="button"
               aria-expanded={open}

@@ -95,3 +95,19 @@ export function validateSettingsSearch(search: Record<string, unknown>): Setting
     section: asString(search.section),
   }
 }
+
+/** Вьюер: исследование, серия и срез (с единицы — как говорят люди: «смотри 57-й срез»). */
+export interface ViewerSearch {
+  study?: string
+  series?: string
+  slice?: number
+}
+
+export function validateViewerSearch(search: Record<string, unknown>): ViewerSearch {
+  const slice = Number(search.slice)
+  return {
+    study: asString(search.study),
+    series: asString(search.series),
+    slice: Number.isInteger(slice) && slice > 0 ? slice : undefined,
+  }
+}

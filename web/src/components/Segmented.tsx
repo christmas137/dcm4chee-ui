@@ -5,6 +5,8 @@
 export interface SegmentOption<T extends string> {
   value: T
   label: string
+  /** Подсказка при наведении — например, горячая клавиша. */
+  title?: string
 }
 
 export function Segmented<T extends string>({
@@ -33,6 +35,7 @@ export function Segmented<T extends string>({
             role={asTabs ? 'tab' : undefined}
             aria-selected={asTabs ? active : undefined}
             aria-pressed={asTabs ? undefined : active}
+            title={option.title}
             onClick={() => onChange(option.value)}
             className={[
               'rounded-[5px] whitespace-nowrap transition-colors',

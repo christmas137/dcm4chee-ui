@@ -10,6 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@cornerstonejs/core": "^5.11.7",
+    "@cornerstonejs/dicom-image-loader": "^5.11.7",
+    "@cornerstonejs/tools": "^5.11.7",
     "@fontsource-variable/golos-text": "^5.3.0",
     "@fontsource/pt-mono": "^5.3.0",
     "@tailwindcss/vite": "^4.3.3",
@@ -17,6 +20,8 @@
     "@tanstack/react-router": "^1.170.35",
     "@tanstack/react-virtual": "^3.14.12",
     "dcmjs": "^0.52.0",
+    "dicom-parser": "^1.8.21",
+    "events": "^3.3.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "tailwindcss": "^4.3.3"

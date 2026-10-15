@@ -154,3 +154,41 @@ export function useInstanceMetadata(aet: string, studyUID: string, seriesUID?: s
     },
   })
 }
+
+/**
+ * Метаданные всех снимков серии — их требует загрузчик кадров вьюера (WADO-RS).
+ * Один запрос на серию: так делает и OHIF; для серии в тысячу срезов это пара мегабайт.
+ */
+export function useSeriesMetadata(aet: string, studyUID: string, seriesUID: string | undefined) {
+  return useQuery({
+    queryKey: ['series-metadata', aet, studyUID, seriesUID],
+    enabled: Boolean(seriesUID),
+    staleTime: 5 * 60_000,
+    queryFn: () => getJson<DicomJson[]>(`${seriesPath(aet, studyUID, seriesUID!)}/metadata`),
+  })
+}
+
+/**
+ * Синтаксис хранения каждого снимка серии (AvailableTransferSyntaxUID). В /metadata его нет,
+ * а вьюеру он нужен, чтобы просить кадры в родном сжатии.
+ */
+export function useTransferSyntaxes(aet: string, studyUID: string, seriesUID: string | undefined) {
+  return useQuery({
+    queryKey: ['transfer-syntaxes', aet, studyUID, seriesUID],
+    enabled: Boolean(seriesUID),
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      // Без limit: dcm4chee принимает не больше 99999 (иначе 400), а без него отдаёт всю серию.
+      const found = await getJson<DicomJson[]>(`${seriesPath(aet, studyUID, seriesUID!)}/instances`, {
+        includefield: '00083002',
+      })
+      return new Map(found.map((ds) => [str(ds, Tag.SOPInstanceUID) ?? '', str(ds, '00083002')]))
+    },
+  })
+}
+
+/** Серверный рендер кадра: JPEG/PNG для картинок, PDF для документов. Запасной путь вьюера. */
+export function renderedUrl(aet: string, studyUID: string, seriesUID: string, sopUID: string, frame?: number): string {
+  const base = instancePath(aet, studyUID, seriesUID, sopUID)
+  return `${ARCHIVE_BASE}${base}${frame ? `/frames/${frame}` : ''}/rendered`
+}

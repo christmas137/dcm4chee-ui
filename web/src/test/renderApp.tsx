@@ -3,12 +3,15 @@ import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryHistory, RouterProvider } from '@tanstack/react-router'
 import { createAppRouter } from '../app/router'
+import { EngineContext } from '../features/viewer/engine'
+import type { EngineFactory } from '../features/viewer/engine'
+import { fakeEngines } from './fakeEngine'
 
 /**
  * Поднимает настоящее приложение — те же маршруты, страницы, провайдеры — на заданном URL.
  * Архив подменяется через FakeArchive.install() до вызова.
  */
-export function renderApp(url: string) {
+export function renderApp(url: string, { engine = fakeEngines().factory }: { engine?: EngineFactory } = {}) {
   const history = createMemoryHistory({ initialEntries: [url] })
   const router = createAppRouter(history)
   const queryClient = new QueryClient({
@@ -20,7 +23,9 @@ export function renderApp(url: string) {
   const user = userEvent.setup()
   const utils = render(
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <EngineContext value={engine}>
+        <RouterProvider router={router} />
+      </EngineContext>
     </QueryClientProvider>,
   )
   return {

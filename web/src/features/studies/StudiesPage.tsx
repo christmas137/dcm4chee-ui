@@ -39,7 +39,7 @@ export function StudiesPage() {
     if (index >= 0) setSelected(index)
   }, [search.study, rows])
 
-  // j/k — вверх-вниз, Enter — открыть, Esc — закрыть панель. Пока пользователь печатает, не мешаем.
+  // j/k — вверх-вниз, Enter — открыть, V — во вьюер, Esc — закрыть панель. Пока пользователь печатает, не мешаем.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null
@@ -60,6 +60,15 @@ export function StudiesPage() {
       } else if (event.key === 'Enter') {
         event.preventDefault()
         openStudy(rows[selected])
+      } else if (event.key === 'v' || event.key === 'V') {
+        // Сразу во вьюер; если панель открыта на этом же исследовании — с выбранной там серией.
+        const row = rows[selected]
+        if (!row) return
+        event.preventDefault()
+        void navigate({
+          to: '/view',
+          search: { study: row.studyUID, series: search.study === row.studyUID ? search.series : undefined },
+        })
       }
     }
     window.addEventListener('keydown', onKeyDown)

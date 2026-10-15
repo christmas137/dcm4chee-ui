@@ -5,6 +5,6 @@ dir=$(cd "$(dirname "$0")" && pwd)
 if [ ! -d "$dir/.venv" ]; then
   python3 -m venv "$dir/.venv"
   "$dir/.venv/bin/pip" install -q --upgrade pip
-  "$dir/.venv/bin/pip" install -q pydicom numpy
+  "$dir/.venv/bin/pip" install -q pydicom numpy pylibjpeg pylibjpeg-openjpeg pyjpegls
 fi
 exec "$dir/.venv/bin/python" "$dir/seed.py" "$@"

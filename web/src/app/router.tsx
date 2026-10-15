@@ -2,19 +2,20 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  lazyRouteComponent,
   parseSearchWith,
   redirect,
   stringifySearchWith,
 } from '@tanstack/react-router'
 import type { RouterHistory } from '@tanstack/react-router'
 import { Layout } from './Layout'
-import { parseValue, stringifyValue, validateSettingsSearch, validateStudiesSearch } from './searchParams'
+import { parseValue, stringifyValue, validateSettingsSearch, validateStudiesSearch, validateViewerSearch } from './searchParams'
 import { StudiesPage } from '../features/studies/StudiesPage'
 import { TasksPage } from '../features/tasks/TasksPage'
 import { UploadPage } from '../features/upload/UploadPage'
 import { SettingsPage } from '../features/settings/SettingsPage'
 
-export type { SettingsSearch, StudiesSearch } from './searchParams'
+export type { SettingsSearch, StudiesSearch, ViewerSearch } from './searchParams'
 
 const rootRoute = createRootRoute({ component: Layout })
 
@@ -33,6 +34,14 @@ const studiesRoute = createRoute({
   validateSearch: validateStudiesSearch,
 })
 
+/** Вьюер грузится отдельным чанком: cornerstone тяжёлый, списку он не нужен. */
+const viewerRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/view',
+  component: lazyRouteComponent(() => import('../features/viewer/ViewerPage'), 'ViewerPage'),
+  validateSearch: validateViewerSearch,
+})
+
 const tasksRoute = createRoute({ getParentRoute: () => rootRoute, path: '/tasks', component: TasksPage })
 const uploadRoute = createRoute({ getParentRoute: () => rootRoute, path: '/upload', component: UploadPage })
 const settingsRoute = createRoute({
@@ -42,7 +51,7 @@ const settingsRoute = createRoute({
   validateSearch: validateSettingsSearch,
 })
 
-const routeTree = rootRoute.addChildren([indexRoute, studiesRoute, tasksRoute, uploadRoute, settingsRoute])
+const routeTree = rootRoute.addChildren([indexRoute, studiesRoute, viewerRoute, tasksRoute, uploadRoute, settingsRoute])
 
 /** Фабрика — чтобы тесты поднимали то же самое приложение, но на памяти вместо адресной строки. */
 export function createAppRouter(history?: RouterHistory) {

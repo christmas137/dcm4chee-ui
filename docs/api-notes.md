@@ -136,3 +136,34 @@ GET /metrics/{name}
   в массиве соединений устройства. При удалении соединения ссылки надо пересчитывать.
 - C-ECHO через REST в 5.35 не нашёлся: ни `/aets/{aet}/echo/{remote}`,
   ни `/aets/{aet}/dimse/{remote}/echo` — оба 404.
+
+## Кадры для вьюера (WADO-RS): что проверено вживую
+
+- `GET …/series/{series}/metadata` — метаданные всех снимков серии одним запросом
+  (их требует загрузчик cornerstone). `AvailableTransferSyntaxUID` (0008,3002) в них **нет** —
+  он есть только в QIDO по снимкам: `…/series/{series}/instances?includefield=00083002`.
+- `limit` в QIDO проверяется регуляркой `[1-9]\d{0,4}` — больше 99999 даёт `400`.
+  Без `limit` (и без `dcmQueryMaxNumberOfResults` в конфиге) архив отдаёт всё.
+- **Согласование сжатия кадров.** На `Accept: multipart/related; type=application/octet-stream;
+  transfer-syntax=*` dcm4chee отдаёт кадр **несжатым** — разжимает на сервере. Так по умолчанию
+  просит cornerstone. Чтобы получить родное сжатие, нужен медиатип формата:
+  `image/jp2` (JPEG 2000), `image/jls` (JPEG-LS), `image/jll`, `image/jpeg`, `image/jphc`.
+  Ответ приходит с `transfer-syntax=…` в заголовке части. Кадр JPEG 2000 тестового фантома:
+  15 КБ вместо 33 КБ. Можно перечислить несколько вариантов через запятую — с несжатым запасным.
+- RLE: архив понимает стандартный `image/dicom-rle`, но отвечает **без** `transfer-syntax`,
+  а cornerstone знает только `image/x-dicom-rle` (на него dcm4chee отвечает `406`).
+  Поэтому RLE просим несжатым.
+- `…/instances/{sop}/rendered` — JPEG для картинок и `application/pdf` для Encapsulated PDF.
+  `…/frames/{n}/rendered` — конкретный кадр многокадрового снимка.
+
+## cornerstone3D 5.x + Vite: грабли
+
+- Загрузчик кадров нельзя пускать в pre-bundle (`optimizeDeps.exclude`): он создаёт воркер
+  через `new URL(…, import.meta.url)`. А его CommonJS-зависимости — наоборот, включить
+  (`dicom-parser`, `pako`, кодеки по подпутям `…/decodewasmjs`), иначе нет `export default`.
+- vtk.js тянет `xmlbuilder2`, который наследуется от Node-шного `EventEmitter` — нужен npm-пакет
+  `events`, иначе «Class extends value undefined».
+- `ToolGroup.setToolActive` **дописывает** привязки мыши к прежним. Перед сменой инструмента
+  снимаем всё через `setToolPassive(name, { removeAllBindings: true })`.
+- Заголовки запросов кадров настраиваются хуком `beforeSend(xhr, imageId)` при `init` загрузчика —
+  через него и родное сжатие, и (в будущем) Bearer-токен.

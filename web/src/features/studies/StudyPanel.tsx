@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { formatBytes, formatDateTime, num, Tag } from '../../api/dicom'
 import { useFirstInstance, useInstanceMetadata, useSeries, useStudy } from '../../api/series'
 import type { StudiesSearch } from '../../app/searchParams'
@@ -76,7 +77,7 @@ export function StudyPanel({ aet, studyUID, series, sop, pane = 'series', onNavi
             </div>
           </>
         )}
-        <div className="mt-3">
+        <div className="mt-3 flex items-center justify-between gap-2">
           <Segmented
             asTabs
             size="sm"
@@ -85,6 +86,14 @@ export function StudyPanel({ aet, studyUID, series, sop, pane = 'series', onNavi
             value={pane}
             onChange={(next) => onNavigate({ pane: next })}
           />
+          <Link
+            to="/view"
+            search={{ study: studyUID, series }}
+            title="Открыть во вьюере — V"
+            className="flex h-7 items-center rounded-md bg-accent px-3 text-[12.5px] font-medium text-accent-fg hover:opacity-90"
+          >
+            Смотреть снимки
+          </Link>
         </div>
       </header>
 
