@@ -71,8 +71,18 @@ else
   INSTALL_DIR=/opt/dcm4chee/deploy
 fi
 
+INSTALL_ARGS="--install-runtime ${RUNTIME_OPT[*]+"${RUNTIME_OPT[*]}"}"
+if [ -n "$OFFLINE" ]; then
+  # Закрытый контур по-настоящему: Docker ставим заранее, затем отключаем машину от сети.
+  echo "== Docker заранее, затем машина без сети"
+  docker exec "$NAME" sh -c 'curl -fsSL https://get.docker.com | sh >/dev/null 2>&1 && systemctl enable --now docker >/dev/null 2>&1' || exit 1
+  docker network disconnect bridge "$NAME" || exit 1
+  docker exec "$NAME" sh -c '! curl -s -m 5 -o /dev/null https://registry-1.docker.io' && echo "  ✓ сети нет"
+  INSTALL_ARGS=""
+fi
+
 echo "== Установка"
-docker exec "$NAME" bash -c "cd $INSTALL_DIR && ./install.sh --install-runtime ${RUNTIME_OPT[*]+"${RUNTIME_OPT[*]}"}" || { echo "УСТАНОВКА НЕ ПРОШЛА"; exit 1; }
+docker exec "$NAME" bash -c "cd $INSTALL_DIR && ./install.sh $INSTALL_ARGS" || { echo "УСТАНОВКА НЕ ПРОШЛА"; exit 1; }
 
 echo
 echo "== Проверка установленного"

@@ -31,7 +31,7 @@ set -a
 set +a
 
 NAME="dcm4chee-offline-${ARC_VERSION}-${ARCH}"
-OUT="$DEPLOY_DIR/../dist"
+OUT="$(cd "$DEPLOY_DIR/.." && pwd)/dist"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 mkdir -p "$OUT" "$STAGE/dcm4chee-offline/deploy/images"

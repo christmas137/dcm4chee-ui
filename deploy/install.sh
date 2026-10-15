@@ -215,8 +215,19 @@ prepare_images() {
   ok "интерфейс: localhost/dcm4chee-ui:${UI_VERSION}"
 
   if [ "$MODE" = full ]; then
-    info "скачиваем образы архива (если их ещё нет)…"
-    compose pull --quiet --ignore-buildable ldap db arc 2>/dev/null || compose pull ldap db arc >/dev/null
+    # Качаем только недостающее: в закрытом контуре образы уже загружены из пакета, а сети нет.
+    local image missing=()
+    for image in "docker.io/dcm4che/slapd-dcm4chee:${LDAP_VERSION}" \
+                 "docker.io/dcm4che/postgres-dcm4chee:${POSTGRES_VERSION}" \
+                 "docker.io/dcm4che/dcm4chee-arc-psql:${ARC_VERSION}"; do
+      "$RUNTIME" image inspect "$image" >/dev/null 2>&1 || missing+=("$image")
+    done
+    if [ ${#missing[@]} -gt 0 ]; then
+      info "скачиваем образы архива…"
+      for image in "${missing[@]}"; do
+        "$RUNTIME" pull -q "$image" >/dev/null || die "не удалось скачать $image — нет сети? Для закрытого контура нужен офлайн-пакет"
+      done
+    fi
     ok "архив: dcm4chee-arc-psql:${ARC_VERSION}, LDAP ${LDAP_VERSION}, PostgreSQL ${POSTGRES_VERSION}"
   fi
 }
