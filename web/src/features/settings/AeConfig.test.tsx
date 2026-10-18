@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
-import { archiveDevice, clone, configArchive } from '../../test/configFixtures'
+import { archiveDevice, clone, configArchive, storescpDevice } from '../../test/configFixtures'
 import type { Device } from '../../api/devices'
 import { renderApp } from '../../test/renderApp'
 
@@ -124,7 +124,7 @@ describe('редактор AE', () => {
 
     await user.click(screen.getByRole('button', { name: /Показать транспортные возможности \(1: SCP 1, SCU 0\)/ }))
     await user.click(screen.getByRole('button', { name: 'Удалить' }))
-    expect(screen.getByText(/Ничего не задано/)).toBeInTheDocument()
+    expect(screen.getByText(/Не заданы — архив предлагает узлу всё, что умеет сам/)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '+ Добавить возможность' }))
     await user.type(screen.getByPlaceholderText(/^Название/), 'MR Image Storage SCP')
@@ -141,6 +141,17 @@ describe('редактор AE', () => {
       dicomTransferRole: 'SCP',
       dicomTransferSyntax: ['1.2.840.10008.1.2', '1.2.840.10008.1.2.1'],
     }])
+  })
+
+  it('узел без приёма снимков — предупреждение, что отправлять на него архив не сможет', async () => {
+    const device = storescpDevice()
+    device.dicomNetworkAE![0].dicomTransferCapability = [{
+      cn: 'Verification SCP', dicomSOPClass: '1.2.840.10008.1.1', dicomTransferRole: 'SCP', dicomTransferSyntax: ['1.2.840.10008.1.2'],
+    }]
+    configArchive([archiveDevice(), device]).install()
+    const { user } = renderApp('/settings')
+    await openAe(user, 'STORESCP')
+    expect(screen.getByText(/нет приёма снимков \(Storage SCP\)/)).toBeInTheDocument()
   })
 
   it('вкладка JSON: правка AE как есть', async () => {
@@ -311,17 +322,13 @@ describe('новое подключение', () => {
     if (values.desc) await user.type(screen.getByPlaceholderText('ЦАМИ, приёмный PACS'), values.desc)
   }
 
-  it('создаёт устройство с соединением, AE и Verification — ровно такой POST', async () => {
+  it('создаёт устройство с соединением и AE — ровно такой POST, без транспортных возможностей', async () => {
     const archive = configArchive().install()
     const { user, search } = renderApp('/settings')
     await fill(user, { name: 'ct-214', ae: 'ct_scanner_1', host: '10.0.0.77', port: '11112', desc: 'КТ, кабинет 214' })
     await user.click(screen.getByRole('button', { name: 'Создать' }))
 
     await waitFor(() => expect(archive.calls('POST', '/devices/ct-214')).toHaveLength(1))
-    const verification = (role: string) => ({
-      cn: `Verification ${role}`, dicomSOPClass: '1.2.840.10008.1.1', dicomTransferRole: role,
-      dicomTransferSyntax: ['1.2.840.10008.1.2', '1.2.840.10008.1.2.1'],
-    })
     expect(archive.calls('POST', '/devices/ct-214')[0].body).toEqual({
       dicomDeviceName: 'ct-214',
       dicomDescription: 'КТ, кабинет 214',
@@ -333,7 +340,8 @@ describe('новое подключение', () => {
         dicomAssociationInitiator: true,
         dicomAssociationAcceptor: true,
         dicomNetworkConnectionReference: ['/dicomNetworkConnection/0'],
-        dicomTransferCapability: [verification('SCP'), verification('SCU')],
+        // Без транспортных возможностей архив предлагает узлу всё, что умеет. С одним
+        // Verification узел отвечал бы на C-ECHO, но снимков не получал (проверено на стенде).
       }],
     })
     // Сразу открылся редактор нового AE, и предложено применить конфигурацию.

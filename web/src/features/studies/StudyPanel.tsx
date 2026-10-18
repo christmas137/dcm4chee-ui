@@ -1,3 +1,4 @@
+import { lazy, Suspense, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { formatBytes, formatDateTime, num, Tag } from '../../api/dicom'
 import { useFirstInstance, useInstanceMetadata, useSeries, useStudy } from '../../api/series'
@@ -6,7 +7,12 @@ import { ModalityList } from '../../components/Modality'
 import { Segmented } from '../../components/Segmented'
 import { ErrorBox, Spinner } from '../../components/ui'
 import { countLabel } from '../../lib/plural'
+import { Button } from '../../components/form'
 import { MetadataView } from './MetadataView'
+// Диалоги действий открываются редко — грузим их по требованию, а не с основным бандлом.
+const SendDialog = lazy(() => import('./SendDialog').then((module) => ({ default: module.SendDialog })))
+const EditDialog = lazy(() => import('./EditDialog').then((module) => ({ default: module.EditDialog })))
+const RejectDialog = lazy(() => import('./RejectDialog').then((module) => ({ default: module.RejectDialog })))
 import { SeriesList } from './SeriesList'
 
 const SEX: Record<string, string> = { M: 'мужской', F: 'женский', O: 'другой' }
@@ -25,6 +31,7 @@ interface Props {
 export function StudyPanel({ aet, studyUID, series, sop, pane = 'series', onNavigate, onClose }: Props) {
   const study = useStudy(aet, studyUID)
   const seriesList = useSeries(aet, studyUID)
+  const [dialog, setDialog] = useState<'send' | 'edit' | 'reject' | null>(null)
 
   // Для метаданных нужен конкретный снимок: выбранный, иначе первый в выбранной (или первой) серии.
   const targetSeries = series ?? seriesList.data?.[0]?.seriesUID
@@ -77,6 +84,21 @@ export function StudyPanel({ aet, studyUID, series, sop, pane = 'series', onNavi
             </div>
           </>
         )}
+        <div className="mt-3 flex flex-wrap items-center gap-2" role="toolbar" aria-label="Действия с исследованием">
+          <Link
+            to="/view"
+            search={{ study: studyUID, series }}
+            title="Открыть во вьюере — V"
+            className="flex h-7 items-center rounded-md bg-accent px-3 text-[12.5px] font-medium text-accent-fg hover:opacity-90"
+          >
+            Смотреть снимки
+          </Link>
+          {/* Остальным действиям нужны данные исследования — до загрузки они неактивны. */}
+          <Button disabled={!row} onClick={() => setDialog('send')}>Отправить</Button>
+          <Button disabled={!row} onClick={() => setDialog('edit')}>Изменить</Button>
+          <div className="flex-1" />
+          <Button tone="danger" disabled={!row} onClick={() => setDialog('reject')}>Отклонить или удалить</Button>
+        </div>
         <div className="mt-3 flex items-center justify-between gap-2">
           <Segmented
             asTabs
@@ -86,14 +108,6 @@ export function StudyPanel({ aet, studyUID, series, sop, pane = 'series', onNavi
             value={pane}
             onChange={(next) => onNavigate({ pane: next })}
           />
-          <Link
-            to="/view"
-            search={{ study: studyUID, series }}
-            title="Открыть во вьюере — V"
-            className="flex h-7 items-center rounded-md bg-accent px-3 text-[12.5px] font-medium text-accent-fg hover:opacity-90"
-          >
-            Смотреть снимки
-          </Link>
         </div>
       </header>
 
@@ -131,6 +145,24 @@ export function StudyPanel({ aet, studyUID, series, sop, pane = 'series', onNavi
       ) : (
         <div className="p-3"><Spinner /></div>
       )}
+      <Suspense fallback={null}>
+      {dialog === 'send' && row && (
+        <SendDialog aet={aet} study={row} series={seriesList.data ?? []} onClose={() => setDialog(null)} />
+      )}
+      {dialog === 'edit' && <EditDialog aet={aet} studyUID={studyUID} onClose={() => setDialog(null)} />}
+      {dialog === 'reject' && row && (
+        <RejectDialog
+          aet={aet}
+          study={row}
+          series={seriesList.data ?? []}
+          onClose={() => setDialog(null)}
+          onDeleted={() => {
+            setDialog(null)
+            onClose()
+          }}
+        />
+      )}
+      </Suspense>
     </aside>
   )
 }

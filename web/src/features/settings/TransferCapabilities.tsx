@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { TransferCapability } from '../../api/devices'
 import { Button, Select, TextInput } from '../../components/form'
-import { DEFAULT_TRANSFER_SYNTAXES, transferSyntaxName, VERIFICATION_SOP_CLASS } from './dicomUids'
+import { DEFAULT_TRANSFER_SYNTAXES, isStorageSOPClass, transferSyntaxName, VERIFICATION_SOP_CLASS } from './dicomUids'
 
 /** Что AE умеет принимать и отправлять: SOP-классы и транспортные синтаксисы. */
 export function TransferCapabilities({
@@ -21,6 +21,11 @@ export function TransferCapabilities({
 
   const scu = items.filter((item) => item.dicomTransferRole === 'SCU').length
   const scp = items.length - scu
+  // Проверено на стенде: архив предлагает узлу только перечисленное. Узел, у которого есть
+  // возможности, но нет ни одного класса хранения в роли SCP, отвечает на C-ECHO, а снимки
+  // от архива не получает («no Presentation Context offered»).
+  const cannotReceive = items.length > 0
+    && !items.some((item) => item.dicomTransferRole === 'SCP' && isStorageSOPClass(item.dicomSOPClass))
 
   return (
     <section className="space-y-1.5">
@@ -31,6 +36,18 @@ export function TransferCapabilities({
       >
         {open ? 'Скрыть' : 'Показать'} транспортные возможности ({items.length}: SCP {scp}, SCU {scu})
       </button>
+      {items.length === 0 && (
+        <p className="text-[11px] text-muted">
+          Не заданы — архив предлагает узлу всё, что умеет сам. Обычно так и нужно.
+        </p>
+      )}
+      {cannotReceive && (
+        <p className="text-[11px] text-warn">
+          Среди возможностей нет приёма снимков (Storage SCP) — архив не сможет отправлять сюда
+          исследования. Добавьте нужные классы хранения или удалите все возможности: тогда архив
+          будет предлагать всё, что умеет.
+        </p>
+      )}
 
       {open && (
         <div className="space-y-1 rounded border border-line">
@@ -56,11 +73,6 @@ export function TransferCapabilities({
                 </button>
               </div>
             ))}
-            {items.length === 0 && (
-              <p className="px-2 py-3 text-center text-[11px] text-muted">
-                Ничего не задано — узел не сможет договориться об ассоциации.
-              </p>
-            )}
           </div>
 
           <div className="border-t border-line p-2">

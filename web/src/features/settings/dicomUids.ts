@@ -26,3 +26,8 @@ export const VERIFICATION_SOP_CLASS = '1.2.840.10008.1.1'
 export function transferSyntaxName(uid: string): string {
   return TRANSFER_SYNTAX_NAMES[uid] ?? uid
 }
+
+/** Классы хранения снимков (PS3.4 B.5): всё, что архив отправляет C-STORE-ом. */
+export function isStorageSOPClass(uid: string | undefined): boolean {
+  return Boolean(uid?.startsWith('1.2.840.10008.5.1.4.1.1.'))
+}

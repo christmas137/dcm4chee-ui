@@ -12,7 +12,6 @@ import { Layout } from './Layout'
 import { parseValue, stringifyValue, validateSettingsSearch, validateStudiesSearch, validateViewerSearch } from './searchParams'
 import { StudiesPage } from '../features/studies/StudiesPage'
 import { TasksPage } from '../features/tasks/TasksPage'
-import { UploadPage } from '../features/upload/UploadPage'
 
 export type { SettingsSearch, StudiesSearch, ViewerSearch } from './searchParams'
 
@@ -42,7 +41,12 @@ const viewerRoute = createRoute({
 })
 
 const tasksRoute = createRoute({ getParentRoute: () => rootRoute, path: '/tasks', component: TasksPage })
-const uploadRoute = createRoute({ getParentRoute: () => rootRoute, path: '/upload', component: UploadPage })
+/** Загрузка — отдельным чанком: разбор DICOM и распаковка ZIP нужны только здесь. */
+const uploadRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/upload',
+  component: lazyRouteComponent(() => import('../features/upload/UploadPage'), 'UploadPage'),
+})
 /** Конфигурация — отдельным чанком: схемы dcm4chee с переводом весят около мегабайта. */
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,

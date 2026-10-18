@@ -3,7 +3,6 @@ import { useCreateDevice, useDevices, useUsedAeTitles } from '../../api/devices'
 import type { Device } from '../../api/devices'
 import { Button, Checkbox, Field, TextInput } from '../../components/form'
 import { ErrorBox } from '../../components/ui'
-import { DEFAULT_TRANSFER_SYNTAXES, VERIFICATION_SOP_CLASS } from './dicomUids'
 
 /** Типовая задача: подключить внешний PACS или модальность — устройство, соединение и AE разом. */
 export function NewDeviceDialog({
@@ -50,21 +49,9 @@ export function NewDeviceDialog({
           dicomAssociationInitiator: initiator,
           dicomAssociationAcceptor: acceptor,
           dicomNetworkConnectionReference: ['/dicomNetworkConnection/0'],
-          // Verification — чтобы связь можно было проверить сразу после создания.
-          dicomTransferCapability: [
-            {
-              cn: 'Verification SCP',
-              dicomSOPClass: VERIFICATION_SOP_CLASS,
-              dicomTransferRole: 'SCP',
-              dicomTransferSyntax: DEFAULT_TRANSFER_SYNTAXES,
-            },
-            {
-              cn: 'Verification SCU',
-              dicomSOPClass: VERIFICATION_SOP_CLASS,
-              dicomTransferRole: 'SCU',
-              dicomTransferSyntax: DEFAULT_TRANSFER_SYNTAXES,
-            },
-          ],
+          // Транспортные возможности не задаём: тогда архив предлагает узлу всё, что умеет сам.
+          // Стоит перечислить хоть одну — и архив будет слать только перечисленное: узел
+          // с одним Verification отвечает на C-ECHO, но снимков от архива не получит.
         },
       ],
     }

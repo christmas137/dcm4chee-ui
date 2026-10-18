@@ -44,6 +44,8 @@ export function StudiesPage() {
     function onKeyDown(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null
       if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable) return
+      // Открыт диалог (отправка, правка, отклонение) — клавиши списка за ним не работают.
+      if (document.querySelector('[role="dialog"]')) return
       if (event.key === 'Escape' && search.study) {
         event.preventDefault()
         closeStudy()

@@ -16,6 +16,9 @@ export interface RecordedRequest {
   params: URLSearchParams
   /** Тело запроса, разобранное из JSON, если это JSON. */
   body?: unknown
+  /** Бинарное тело (Blob) — у загрузки по STOW. */
+  blob?: Blob
+  headers: Headers
 }
 
 type HandlerResult = Response | unknown
@@ -74,7 +77,8 @@ export class FakeArchive {
         body = init.body
       }
     }
-    const request: RecordedRequest = { method, path, params: target.searchParams, body }
+    const blob = init.body instanceof Blob ? init.body : undefined
+    const request: RecordedRequest = { method, path, params: target.searchParams, body, blob, headers: new Headers(init.headers) }
     this.requests.push(request)
 
     const route = this.routes.find((item) => item.method === method && matches(item.pattern, path))
