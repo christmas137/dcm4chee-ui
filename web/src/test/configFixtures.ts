@@ -25,7 +25,7 @@ export function archiveDevice(): Device {
           { cn: 'CT Image Storage SCP', dicomSOPClass: '1.2.840.10008.5.1.4.1.1.2', dicomTransferRole: 'SCP',
             dicomTransferSyntax: ['1.2.840.10008.1.2', '1.2.840.10008.1.2.1'] },
         ],
-        dcmNetworkAE: { dcmQueryRetrieveViewID: 'hideRejected' },
+        dcmNetworkAE: { dcmArchiveNetworkAE: { dcmQueryRetrieveViewID: 'hideRejected' } },
       },
       {
         dicomAETitle: 'WORKLIST',
@@ -49,6 +49,10 @@ export function archiveDevice(): Device {
           { dcmQueueName: 'StgCmtSCU', dicomDescription: 'Storage Commitment', dcmMaxRetries: 10 },
         ],
         dcmExporter: [],
+        dcmQueryRetrieveView: [
+          { dcmQueryRetrieveViewID: 'hideRejected', dcmHideNotRejectedInstances: false },
+          { dcmQueryRetrieveViewID: 'regularUse', dcmHideNotRejectedInstances: false },
+        ],
       },
     },
   }

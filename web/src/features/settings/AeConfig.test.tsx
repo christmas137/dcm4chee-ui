@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { archiveDevice, clone, configArchive } from '../../test/configFixtures'
 import type { Device } from '../../api/devices'
 import { renderApp } from '../../test/renderApp'
@@ -143,22 +143,107 @@ describe('редактор AE', () => {
     }])
   })
 
-  it('JSON-редактор даёт доступ к полям без формы (dcmNetworkAE)', async () => {
+  it('вкладка JSON: правка AE как есть', async () => {
     const archive = configArchive().install()
     const { user } = renderApp('/settings')
     await openAe(user, 'DCM4CHEE')
 
-    await user.click(screen.getByRole('button', { name: /все поля AE \(JSON\)/ }))
+    await user.click(screen.getByRole('tab', { name: 'JSON' }))
     const textarea = screen.getByRole('textbox', { name: 'JSON AE' }) as HTMLTextAreaElement
     const value = JSON.parse(textarea.value)
-    value.dcmNetworkAE.dcmQueryRetrieveViewID = 'regularUse'
-    await user.clear(textarea)
-    await user.click(textarea)
-    await user.paste(JSON.stringify(value))
+    value.dcmNetworkAE.dcmArchiveNetworkAE.dcmQueryRetrieveViewID = 'regularUse'
+    fireEvent.change(textarea, { target: { value: JSON.stringify(value) } })
     await user.click(screen.getByRole('button', { name: 'Сохранить' }))
 
     await waitFor(() => expect(archive.calls('PUT', '/devices/dcm4chee-arc')).toHaveLength(1))
-    expect(lastPut(archive).dicomNetworkAE![0].dcmNetworkAE).toEqual({ dcmQueryRetrieveViewID: 'regularUse' })
+    expect(lastPut(archive).dicomNetworkAE![0].dcmNetworkAE)
+      .toEqual({ dcmArchiveNetworkAE: { dcmQueryRetrieveViewID: 'regularUse' } })
+  })
+
+  it('«Все параметры»: параметр архива для AE — с подсказкой, PUT меняет ровно его', async () => {
+    const archive = configArchive().install()
+    const { user } = renderApp('/settings')
+    await openAe(user, 'DCM4CHEE')
+    await user.click(screen.getByRole('tab', { name: 'Все параметры' }))
+
+    // Поля самого AE, расширения dcm4chee и архива — в одной форме, архивные разложены по темам.
+    expect(screen.getByRole('region', { name: 'Основное' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Расширение AE' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Архив: настройки AE · Приём объектов' })).toBeInTheDocument()
+
+    const view = screen.getByRole('combobox', { name: 'Представление Q/R' })
+    expect(view).toHaveValue('hideRejected')
+    const options = [...document.getElementById(view.getAttribute('list')!)!.querySelectorAll('option')]
+    expect(options.map((option) => option.value)).toEqual(['hideRejected', 'regularUse'])
+    await user.clear(view)
+    await user.type(view, 'regularUse')
+    const overwrite = screen.getByRole('combobox', { name: 'Политика перезаписи' })
+    await user.selectOptions(overwrite, 'SAME_SOURCE')
+    await user.click(screen.getByRole('button', { name: 'Сохранить' }))
+
+    await waitFor(() => expect(archive.calls('PUT', '/devices/dcm4chee-arc')).toHaveLength(1))
+    const expected = clone(archiveDevice())
+    expected.dicomNetworkAE![0].dcmNetworkAE = {
+      dcmArchiveNetworkAE: { dcmQueryRetrieveViewID: 'regularUse', dcmOverwritePolicy: 'SAME_SOURCE' },
+    }
+    expect(lastPut(archive)).toEqual(expected)
+  })
+
+  it('«Все параметры»: незаданный параметр AE показывает, что действует на уровне устройства', async () => {
+    configArchive().install()
+    const { user } = renderApp('/settings')
+    await openAe(user, 'WORKLIST')
+    await user.click(screen.getByRole('tab', { name: 'Все параметры' }))
+
+    expect(screen.getByRole('textbox', { name: 'Макс. результатов поиска (C-FIND)' }))
+      .toHaveAttribute('placeholder', 'как у устройства: 1000')
+    const hostCheck = screen.getByRole('radiogroup', { name: 'Проверять хост вызывающего AE' })
+    expect(within(hostCheck).getByRole('radio', { name: 'как у устройства: нет' })).toBeChecked()
+    // На устройстве не задано — у устройства действует умолчание, его AE и наследует.
+    const overwrite = screen.getByRole('combobox', { name: 'Политика перезаписи' })
+    expect(within(overwrite).getByRole('option', { name: 'как у устройства (NEVER)' })).toBeInTheDocument()
+    // Поля, которого на уровне устройства нет вовсе, ничто не подменяет.
+    expect(screen.getByRole('combobox', { name: 'Представление Q/R' })).not.toHaveAttribute('placeholder')
+  })
+
+  it('«Все параметры»: правило экспорта во вложенном списке AE', async () => {
+    const archive = configArchive().install()
+    const { user } = renderApp('/settings')
+    await openAe(user, 'WORKLIST')
+    await user.click(screen.getByRole('tab', { name: 'Все параметры' }))
+
+    await user.click(screen.getByRole('button', { name: 'Правило экспорта: пусто' }))
+    await user.click(screen.getByRole('button', { name: '+ Добавить' }))
+    await user.type(screen.getByRole('textbox', { name: 'Имя' }), 'на STORESCP')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Уровень экспорта' }), 'Study')
+    await user.type(screen.getByRole('textbox', { name: 'ID экспортёра: добавить значение' }), 'STORESCP{Enter}')
+    // Путь показывает, где мы: AE → список → запись.
+    const crumbs = within(screen.getByRole('navigation', { name: 'Путь' }))
+    expect(crumbs.getByRole('button', { name: 'WORKLIST' })).toBeInTheDocument()
+    expect(crumbs.getByText('на STORESCP')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Сохранить' }))
+
+    await waitFor(() => expect(archive.calls('PUT', '/devices/dcm4chee-arc')).toHaveLength(1))
+    const worklist = lastPut(archive).dicomNetworkAE!.find((ae) => ae.dicomAETitle === 'WORKLIST')!
+    expect(worklist.dcmNetworkAE).toEqual({
+      dcmArchiveNetworkAE: { dcmExportRule: [{ cn: 'на STORESCP', dcmEntity: 'Study', dcmExporterID: ['STORESCP'] }] },
+    })
+  })
+
+  it('«Все параметры»: ключ вне схемы виден и правится, а не теряется', async () => {
+    const device = archiveDevice()
+    device.dicomNetworkAE![1].dcmFromNextVersion = 'было'
+    const archive = configArchive([device]).install()
+    const { user } = renderApp('/settings')
+    await openAe(user, 'WORKLIST')
+    await user.click(screen.getByRole('tab', { name: 'Все параметры' }))
+
+    const unknown = screen.getByRole('textbox', { name: 'dcmFromNextVersion' })
+    expect(unknown).toHaveValue('"было"')
+    fireEvent.change(unknown, { target: { value: '"стало"' } })
+    await user.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => expect(archive.calls('PUT', '/devices/dcm4chee-arc')).toHaveLength(1))
+    expect(lastPut(archive).dicomNetworkAE![1].dcmFromNextVersion).toBe('стало')
   })
 
   it('удаление AE — после подтверждения, PUT устройства без этого AE', async () => {

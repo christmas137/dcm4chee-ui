@@ -3,8 +3,12 @@ import { useDevice, useDeleteDevice, useSaveDevice } from '../../api/devices'
 import type { Device, NetworkConnection } from '../../api/devices'
 import { Button, Checkbox, Field, TextInput } from '../../components/form'
 import { JsonEditor } from '../../components/JsonEditor'
+import { Segmented } from '../../components/Segmented'
 import { ErrorBox, Spinner } from '../../components/ui'
 import { countLabel } from '../../lib/plural'
+import { SchemaEditor } from './schema/SchemaEditor'
+import { EDITOR_VIEWS } from './editorViews'
+import type { EditorView } from './editorViews'
 
 const TLS_CIPHERS = ['TLS_RSA_WITH_AES_128_CBC_SHA', 'SSL_RSA_WITH_3DES_EDE_CBC_SHA']
 
@@ -13,15 +17,29 @@ interface Props {
   onChanged(): void
   onClose(): void
   onOpenAe(aeTitle: string): void
+  /** Полный список параметров просит панель пошире. */
+  onWideChange?(wide: boolean): void
 }
 
 /** Устройство целиком: сетевые соединения, список AE и — для полноты — сырой JSON. */
-export function DeviceEditor({ deviceName, onChanged, onClose, onOpenAe }: Props) {
+export function DeviceEditor({ deviceName, onChanged, onClose, onOpenAe, onWideChange }: Props) {
   const device = useDevice(deviceName)
   const save = useSaveDevice()
   const remove = useDeleteDevice()
   const [draft, setDraft] = useState<Device | null>(null)
-  const [showJson, setShowJson] = useState(false)
+  const [view, setView] = useState<EditorView>('main')
+  // Сброс правок пересоздаёт формы: у полей бывает своё локальное состояние.
+  const [revision, setRevision] = useState(0)
+
+  function switchView(next: EditorView) {
+    setView(next)
+    onWideChange?.(next === 'all')
+  }
+
+  function discard() {
+    setDraft(null)
+    setRevision((value) => value + 1)
+  }
 
   if (device.isPending) return <div className="p-4"><Spinner /></div>
   if (device.error) return <ErrorBox error={device.error as Error} retry={() => void device.refetch()} />
@@ -52,15 +70,43 @@ export function DeviceEditor({ deviceName, onChanged, onClose, onOpenAe }: Props
           </p>
         </div>
         <Button tone="primary" disabled={!dirty || save.isPending} onClick={() =>
-          save.mutate(current, { onSuccess: () => { setDraft(null); onChanged() } })}>
+          save.mutate(current, { onSuccess: () => { discard(); onChanged() } })}>
           {save.isPending ? 'Сохраняем…' : 'Сохранить'}
         </Button>
-        <Button disabled={!dirty} onClick={() => setDraft(null)}>Отменить</Button>
-        <Button onClick={onClose} aria-label="Закрыть">✕</Button>
+        <Button disabled={!dirty} onClick={discard}>Отменить</Button>
+        <Button onClick={() => { onWideChange?.(false); onClose() }} aria-label="Закрыть">✕</Button>
       </header>
 
+      <div className="border-b border-line px-3 py-1.5">
+        <Segmented asTabs size="sm" label="Вид редактора" options={EDITOR_VIEWS} value={view} onChange={switchView} />
+      </div>
+      {save.error && <ErrorBox error={save.error as Error} />}
+
+      {view === 'all' ? (
+        <SchemaEditor
+          key={revision}
+          root={current}
+          original={device.data}
+          onChange={(next) => setDraft(next as Device)}
+          base={{ kind: 'object', path: [], schema: 'device.schema.json', label: current.dicomDeviceName }}
+          // Параметры архива и AE правятся на своих вкладках — там они разложены удобнее.
+          skip={['archiveDevice.schema.json']}
+          include={(field) => field.key !== 'dicomNetworkAE'}
+        />
+      ) : view === 'json' ? (
+        <div className="min-h-0 flex-1 overflow-auto p-3">
+          {jsonTooBig ? (
+            <p className="text-[11px] text-warn">
+              Конфигурация этого устройства слишком велика для редактора
+              ({Math.round(JSON.stringify(current).length / 1024)} КБ) — правьте её на вкладке «Все параметры»
+              и в «Настройках архива».
+            </p>
+          ) : (
+            <JsonEditor key={revision} label="JSON устройства" value={current} onChange={(next) => setDraft(next as Device)} rows={30} />
+          )}
+        </div>
+      ) : (
       <div className="min-h-0 flex-1 space-y-4 overflow-auto p-3">
-        {save.error && <ErrorBox error={save.error as Error} />}
 
         <div className="grid grid-cols-[1fr_auto] items-end gap-3">
           <Field label="Описание">
@@ -149,26 +195,6 @@ export function DeviceEditor({ deviceName, onChanged, onClose, onOpenAe }: Props
           </div>
         </section>
 
-        <section className="space-y-1.5">
-          <button
-            type="button"
-            onClick={() => setShowJson((value) => !value)}
-            className="text-[11px] text-accent hover:underline"
-          >
-            {showJson ? 'Скрыть' : 'Показать'} конфигурацию устройства целиком (JSON)
-          </button>
-          {showJson && (
-            jsonTooBig ? (
-              <p className="text-[11px] text-warn">
-                Конфигурация этого устройства слишком велика для редактора
-                ({Math.round(JSON.stringify(current).length / 1024)} КБ) — правьте её по разделам.
-              </p>
-            ) : (
-              <JsonEditor label="JSON устройства" value={current} onChange={(next) => setDraft(next as Device)} rows={22} />
-            )
-          )}
-        </section>
-
         <section className="space-y-1.5 border-t border-line pt-3">
           <p className="text-[11px] text-muted">Опасная зона</p>
           <Button
@@ -184,6 +210,7 @@ export function DeviceEditor({ deviceName, onChanged, onClose, onOpenAe }: Props
           {remove.error && <ErrorBox error={remove.error as Error} />}
         </section>
       </div>
+      )}
     </div>
   )
 }

@@ -9,6 +9,7 @@ import { AeList } from './AeList'
 import { DeviceEditor } from './DeviceEditor'
 import { DeviceList } from './DeviceList'
 import { NewDeviceDialog } from './NewDeviceDialog'
+import { ConfigRefsProvider } from './schema/ConfigRefsProvider'
 
 const TABS = [
   { key: 'ae', label: 'AE-титлы' },
@@ -22,6 +23,9 @@ export function SettingsPage() {
   const reload = useReloadConfig()
   const [dirty, setDirty] = useState(false)
   const [creating, setCreating] = useState(false)
+  // Полный список параметров AE или устройства не помещается в узкую панель.
+  // Запоминаем, для какого редактора панель расширили: у следующего она снова обычная.
+  const [wideFor, setWideFor] = useState<string | null>(null)
 
   const tab = search.tab ?? 'ae'
 
@@ -34,8 +38,12 @@ export function SettingsPage() {
     : search.device
       ? { kind: 'device' as const, device: search.device }
       : null
+  const editingKey = editing && (editing.kind === 'ae' ? `${editing.device}/${editing.ae}` : editing.device)
+  const wide = editingKey !== null && wideFor === editingKey
+  const setWide = (value: boolean) => setWideFor(value ? editingKey : null)
 
   return (
+    <ConfigRefsProvider>
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center gap-2 border-b border-line bg-panel px-4 py-2.5">
         <Segmented
@@ -87,7 +95,9 @@ export function SettingsPage() {
         </div>
 
         {editing && (
-          <aside className="flex w-[560px] shrink-0 flex-col border-l border-line bg-panel">
+          <aside
+            className={`flex shrink-0 flex-col border-l border-line bg-panel ${wide ? 'w-[min(960px,70vw)]' : 'w-[560px]'}`}
+          >
             {editing.kind === 'ae' ? (
               <AeEditor
                 key={`${editing.device}/${editing.ae}`}
@@ -95,6 +105,7 @@ export function SettingsPage() {
                 aeTitle={editing.ae}
                 onChanged={() => setDirty(true)}
                 onClose={() => update({ device: undefined, ae: undefined })}
+                onWideChange={setWide}
               />
             ) : (
               <DeviceEditor
@@ -103,6 +114,7 @@ export function SettingsPage() {
                 onChanged={() => setDirty(true)}
                 onClose={() => update({ device: undefined, ae: undefined })}
                 onOpenAe={(aeTitle) => update({ tab: 'ae', ae: aeTitle })}
+                onWideChange={setWide}
               />
             )}
           </aside>
@@ -121,5 +133,6 @@ export function SettingsPage() {
         />
       )}
     </div>
+    </ConfigRefsProvider>
   )
 }

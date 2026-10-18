@@ -5,7 +5,11 @@ import {
 import type { Device, NetworkAE } from '../../api/devices'
 import { Button, Checkbox, Field, TextInput } from '../../components/form'
 import { JsonEditor } from '../../components/JsonEditor'
+import { Segmented } from '../../components/Segmented'
 import { ErrorBox, Spinner } from '../../components/ui'
+import { EDITOR_VIEWS } from './editorViews'
+import type { EditorView } from './editorViews'
+import { SchemaEditor } from './schema/SchemaEditor'
 import { TransferCapabilities } from './TransferCapabilities'
 
 interface Props {
@@ -13,15 +17,29 @@ interface Props {
   aeTitle: string
   onChanged(): void
   onClose(): void
+  /** Полный список параметров просит панель пошире. */
+  onWideChange?(wide: boolean): void
 }
 
 /** Редактор одного AE. Сохранение — целым устройством, как того требует API конфигурации. */
-export function AeEditor({ deviceName, aeTitle, onChanged, onClose }: Props) {
+export function AeEditor({ deviceName, aeTitle, onChanged, onClose, onWideChange }: Props) {
   const device = useDevice(deviceName)
   const save = useSaveDevice()
   const removeDevice = useDeleteDevice()
   const [draft, setDraft] = useState<NetworkAE | null>(null)
-  const [showJson, setShowJson] = useState(false)
+  const [view, setView] = useState<EditorView>('main')
+  // Сброс правок пересоздаёт формы: у полей бывает своё локальное состояние.
+  const [revision, setRevision] = useState(0)
+
+  function switchView(next: EditorView) {
+    setView(next)
+    onWideChange?.(next === 'all')
+  }
+
+  function discard() {
+    setDraft(null)
+    setRevision((value) => value + 1)
+  }
 
   if (device.isPending) return <div className="p-4"><Spinner /></div>
   if (device.error) return <ErrorBox error={device.error as Error} retry={() => void device.refetch()} />
@@ -54,7 +72,7 @@ export function AeEditor({ deviceName, aeTitle, onChanged, onClose }: Props) {
     const next: Device = { ...loaded, dicomNetworkAE: nextAeList }
     save.mutate(next, {
       onSuccess: () => {
-        setDraft(null)
+        discard()
         onChanged()
       },
     })
@@ -72,12 +90,31 @@ export function AeEditor({ deviceName, aeTitle, onChanged, onClose }: Props) {
         )}>
           {save.isPending ? 'Сохраняем…' : 'Сохранить'}
         </Button>
-        <Button disabled={!dirty} onClick={() => setDraft(null)}>Отменить</Button>
-        <Button onClick={onClose} aria-label="Закрыть">✕</Button>
+        <Button disabled={!dirty} onClick={discard}>Отменить</Button>
+        <Button onClick={() => { onWideChange?.(false); onClose() }} aria-label="Закрыть">✕</Button>
       </header>
 
+      <div className="border-b border-line px-3 py-1.5">
+        <Segmented asTabs size="sm" label="Вид редактора" options={EDITOR_VIEWS} value={view} onChange={switchView} />
+      </div>
+      {save.error && <ErrorBox error={save.error as Error} />}
+
+      {view === 'all' ? (
+        <SchemaEditor
+          key={revision}
+          root={ae}
+          original={original}
+          onChange={(next) => setDraft(next as NetworkAE)}
+          base={{ kind: 'object', path: [], schema: 'networkAE.schema.json', label: aeTitle }}
+          // Привязка к соединениям — ссылками `/dicomNetworkConnection/N`; удобно она правится на «Основном».
+          include={(field) => field.key !== 'dicomNetworkConnectionReference'}
+        />
+      ) : view === 'json' ? (
+        <div className="min-h-0 flex-1 overflow-auto p-3">
+          <JsonEditor key={revision} label="JSON AE" value={ae} onChange={(next) => setDraft(next as NetworkAE)} rows={30} />
+        </div>
+      ) : (
       <div className="min-h-0 flex-1 space-y-4 overflow-auto p-3">
-        {save.error && <ErrorBox error={save.error as Error} />}
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="AE Title" hint="до 16 символов, без пробелов">
@@ -140,24 +177,6 @@ export function AeEditor({ deviceName, aeTitle, onChanged, onClose }: Props) {
           onChange={(items) => patch({ dicomTransferCapability: items })}
         />
 
-        <section className="space-y-1.5">
-          <button
-            type="button"
-            onClick={() => setShowJson((value) => !value)}
-            className="text-[11px] text-accent hover:underline"
-          >
-            {showJson ? 'Скрыть' : 'Показать'} все поля AE (JSON)
-          </button>
-          {showJson && (
-            <>
-              <p className="text-[10px] text-muted">
-                Здесь доступно всё, что умеет dcm4chee, включая настройки хранения и правила.
-              </p>
-              <JsonEditor label="JSON AE" value={ae} onChange={(next) => setDraft(next as NetworkAE)} rows={18} />
-            </>
-          )}
-        </section>
-
         <section className="space-y-1.5 border-t border-line pt-3">
           <p className="text-[11px] text-muted">Опасная зона</p>
           <div className="flex gap-2">
@@ -187,6 +206,7 @@ export function AeEditor({ deviceName, aeTitle, onChanged, onClose }: Props) {
           {removeDevice.error && <ErrorBox error={removeDevice.error as Error} />}
         </section>
       </div>
+      )}
     </div>
   )
 }

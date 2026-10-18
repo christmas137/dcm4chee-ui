@@ -13,7 +13,6 @@ import { parseValue, stringifyValue, validateSettingsSearch, validateStudiesSear
 import { StudiesPage } from '../features/studies/StudiesPage'
 import { TasksPage } from '../features/tasks/TasksPage'
 import { UploadPage } from '../features/upload/UploadPage'
-import { SettingsPage } from '../features/settings/SettingsPage'
 
 export type { SettingsSearch, StudiesSearch, ViewerSearch } from './searchParams'
 
@@ -44,10 +43,11 @@ const viewerRoute = createRoute({
 
 const tasksRoute = createRoute({ getParentRoute: () => rootRoute, path: '/tasks', component: TasksPage })
 const uploadRoute = createRoute({ getParentRoute: () => rootRoute, path: '/upload', component: UploadPage })
+/** Конфигурация — отдельным чанком: схемы dcm4chee с переводом весят около мегабайта. */
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/settings',
-  component: SettingsPage,
+  component: lazyRouteComponent(() => import('../features/settings/SettingsPage'), 'SettingsPage'),
   validateSearch: validateSettingsSearch,
 })
 

@@ -95,7 +95,7 @@ describe('редактор устройства', () => {
     const archive = configArchive().install()
     const { user } = renderApp('/settings?tab=devices')
     await openDevice(user, 'storescp')
-    await user.click(screen.getByRole('button', { name: /конфигурацию устройства целиком/ }))
+    await user.click(screen.getByRole('tab', { name: 'JSON' }))
     const textarea = screen.getByRole('textbox', { name: 'JSON устройства' })
 
     fireEvent.change(textarea, { target: { value: '{ сломано' } })
@@ -106,6 +106,34 @@ describe('редактор устройства', () => {
     fireEvent.change(textarea, { target: { value: JSON.stringify(edited) } })
     await user.click(screen.getByRole('button', { name: 'Сохранить' }))
     await waitFor(() => expect(lastPut(archive, 'storescp')).toEqual(edited))
+  })
+
+  it('«Все параметры»: поля устройства и расширенные параметры соединения', async () => {
+    const archive = configArchive().install()
+    const { user } = renderApp('/settings?tab=devices')
+    await openDevice(user, 'storescp')
+    await user.click(screen.getByRole('tab', { name: 'Все параметры' }))
+
+    await user.type(screen.getByRole('textbox', { name: 'Производитель' }), 'dcm4che.org')
+    await user.click(screen.getByRole('button', { name: 'Сетевые соединения: 1 запись' }))
+    await user.click(screen.getByRole('button', { name: 'storescp:11117 dicom' }))
+    await user.type(screen.getByRole('textbox', { name: 'Таймаут TCP-подключения' }), '5000')
+    await user.click(screen.getByRole('button', { name: 'Сохранить' }))
+
+    await waitFor(() => expect(archive.calls('PUT', '/devices/storescp')).toHaveLength(1))
+    const expected = { ...storescpDevice(), dicomManufacturer: 'dcm4che.org' }
+    expected.dicomNetworkConnection = [{ ...expected.dicomNetworkConnection![0], dcmNetworkConnection: { dcmTCPConnectTimeout: 5000 } }]
+    expect(lastPut(archive, 'storescp')).toEqual(expected)
+  })
+
+  it('«Все параметры» архива не дублируют его настройки и список AE', async () => {
+    configArchive().install()
+    const { user } = renderApp('/settings?tab=devices')
+    await openDevice(user, 'dcm4chee-arc')
+    await user.click(screen.getByRole('tab', { name: 'Все параметры' }))
+    expect(screen.queryByRole('combobox', { name: 'Политика перезаписи' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^AE устройства:/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Веб-приложения: 1 запись' })).toBeInTheDocument()
   })
 
   it('кнопки AE ведут в редактор AE', async () => {

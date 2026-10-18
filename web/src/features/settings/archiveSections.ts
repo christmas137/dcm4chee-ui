@@ -3,8 +3,11 @@
  *
  * Всё, что штатный UI раскладывает по вложенным вкладкам, здесь описано таблицей:
  * путь внутри JSON устройства, человеческое название и поля для колонок списка.
+ * Поля записей берутся из схем dcm4chee (`schema/`), так что каждая запись правится формой.
  * Раздел, не попавший в реестр, всё равно виден — он попадёт в группу «Прочее».
  */
+import { getSchema, hasSchema } from './schema/model'
+import { getIn } from './schema/values'
 
 export interface SectionColumn {
   key: string
@@ -20,6 +23,8 @@ export interface SectionDef {
   idKey?: string
   columns?: SectionColumn[]
   hint?: string
+  /** Раздел — один объект, а не список записей (например, приёмник аудита). */
+  single?: boolean
 }
 
 const ARC = ['dcmDevice', 'dcmArchiveDevice']
@@ -128,27 +133,13 @@ export const SECTIONS: SectionDef[] = [
   { path: [...DEV, 'dcmImageReader'], label: 'Чтение изображений', group: 'Службы устройства', idKey: 'dcmIMTransferSyntax' },
   { path: [...DEV, 'dcmImageWriter'], label: 'Запись изображений', group: 'Службы устройства', idKey: 'dcmIMTransferSyntax' },
   { path: [...DEV, 'dcmAuditLogger'], label: 'Аудит', group: 'Службы устройства', idKey: 'cn' },
+  { path: [...DEV, 'dcmAuditRecordRepository'], label: 'Приёмник аудита', group: 'Службы устройства', single: true },
+  { path: [...DEV, 'dcmKeycloakClient'], label: 'Клиенты Keycloak', group: 'Службы устройства', idKey: 'dcmKeycloakClientID' },
   { path: [...DEV, 'dcmuiConfig'], label: 'Настройки штатного UI', group: 'Службы устройства', idKey: 'dcmuiConfigName' },
 ]
 
-export function getAtPath(root: unknown, path: string[]): unknown {
-  return path.reduce<unknown>(
-    (node, key) => (node && typeof node === 'object' ? (node as Record<string, unknown>)[key] : undefined),
-    root,
-  )
-}
-
-/** Возвращает копию `root` с заменённым значением по пути (исходный объект не трогаем). */
-export function setAtPath<T>(root: T, path: string[], value: unknown): T {
-  if (path.length === 0) return value as T
-  const [head, ...rest] = path
-  const source = (root ?? {}) as Record<string, unknown>
-  const child = rest.length ? setAtPath(source[head] ?? {}, rest, value) : value
-  return { ...source, [head]: child } as T
-}
-
 export function sectionItems(device: unknown, section: SectionDef): Record<string, unknown>[] {
-  const value = getAtPath(device, section.path)
+  const value = getIn(device, section.path)
   return Array.isArray(value) ? (value as Record<string, unknown>[]) : []
 }
 
@@ -169,7 +160,7 @@ export function extraSections(device: unknown): SectionDef[] {
   const known = new Set(SECTIONS.map((section) => section.path.join('/')))
   const found: SectionDef[] = []
   for (const base of [DEV, ARC]) {
-    const node = getAtPath(device, base)
+    const node = getIn(device, base)
     if (!node || typeof node !== 'object') continue
     for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
       const path = [...base, key]
@@ -181,16 +172,13 @@ export function extraSections(device: unknown): SectionDef[] {
   return found.sort((a, b) => a.label.localeCompare(b.label))
 }
 
-/** Скалярные настройки уровня `dcmArchiveDevice` — те самые «мелкие крутилки». */
-export function scalarSettings(device: unknown): [string, string | number | boolean][] {
-  const node = getAtPath(device, ARC)
-  if (!node || typeof node !== 'object') return []
-  return Object.entries(node as Record<string, unknown>)
-    .filter((entry): entry is [string, string | number | boolean] => {
-      const value = entry[1]
-      return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
-    })
-    .sort(([a], [b]) => a.localeCompare(b))
+/** Схема записи раздела — по описанию родительского объекта (`dcmDevice` или `dcmArchiveDevice`). */
+export function sectionSchema(section: SectionDef): { ref: string; titleKey?: string } | undefined {
+  const parent = section.path.length === 3 && section.path[1] === 'dcmArchiveDevice'
+    ? 'archiveDevice.schema.json'
+    : section.path.length === 2 ? 'dcmDevice.schema.json' : undefined
+  const prop = parent ? getSchema(parent).properties[section.path[section.path.length - 1]] : undefined
+  const ref = prop?.items?.$ref ?? prop?.$ref
+  if (!prop || !ref || !hasSchema(ref)) return undefined
+  return { ref, titleKey: prop.titleKey }
 }
-
-export const ARCHIVE_EXT_PATH = ARC

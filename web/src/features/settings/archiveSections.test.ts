@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import {
-  extraSections, getAtPath, itemLabel, scalarSettings, sectionItems, SECTIONS, setAtPath,
-} from './archiveSections'
+import { extraSections, itemLabel, sectionItems, SECTIONS, sectionSchema } from './archiveSections'
+import { getSchema } from './schema/model'
 
 const device = {
   dicomDeviceName: 'dcm4chee-arc',
@@ -17,27 +16,6 @@ const device = {
     },
   },
 }
-
-describe('путь в конфигурации', () => {
-  it('читает значение', () => {
-    expect(getAtPath(device, ['dcmDevice', 'dcmArchiveDevice', 'dcmFuzzyAlgorithmClass']))
-      .toBe('org.dcm4che3.soundex.ESoundex')
-    expect(getAtPath(device, ['нет', 'такого'])).toBeUndefined()
-  })
-
-  it('пишет значение, не меняя исходный объект', () => {
-    const next = setAtPath(device, ['dcmDevice', 'dcmArchiveDevice', 'dcmFuzzyAlgorithmClass'], 'x')
-    expect(getAtPath(next, ['dcmDevice', 'dcmArchiveDevice', 'dcmFuzzyAlgorithmClass'])).toBe('x')
-    expect(device.dcmDevice.dcmArchiveDevice.dcmFuzzyAlgorithmClass).toBe('org.dcm4che3.soundex.ESoundex')
-    // Соседние ветки остаются на месте.
-    expect(getAtPath(next, ['dcmDevice', 'dcmWebApp'])).toEqual([{ dcmWebAppName: 'DCM4CHEE' }])
-  })
-
-  it('создаёт недостающие узлы', () => {
-    const next = setAtPath({}, ['a', 'b', 'c'], 1)
-    expect(next).toEqual({ a: { b: { c: 1 } } })
-  })
-})
 
 describe('разделы', () => {
   const storage = SECTIONS.find((section) => section.label === 'Хранилища')!
@@ -65,9 +43,21 @@ describe('разделы', () => {
     expect(extra.map((section) => section.label)).not.toContain('dcmHideSPSWithStatusFromMWL')
   })
 
-  it('собирает скалярные настройки архива', () => {
-    const scalars = scalarSettings(device)
-    expect(scalars).toContainEqual(['dcmFuzzyAlgorithmClass', 'org.dcm4che3.soundex.ESoundex'])
-    expect(scalars.map(([key]) => key)).not.toContain('dcmStorage')
+  it('у каждого раздела из реестра есть схема записей', () => {
+    const without = SECTIONS.filter((section) => !sectionSchema(section)).map((section) => section.path.join('/'))
+    expect(without).toEqual([])
+    expect(sectionSchema(storage)).toEqual({ ref: 'storage.schema.json', titleKey: '{dcmStorageID}' })
+  })
+
+  it('каждый список из схем архива и устройства есть в реестре — ничего не спрятано', () => {
+    const known = new Set(SECTIONS.map((section) => section.path.join('/')))
+    const missing: string[] = []
+    for (const [schema, base] of [['archiveDevice.schema.json', 'dcmDevice/dcmArchiveDevice'], ['dcmDevice.schema.json', 'dcmDevice']]) {
+      for (const [key, prop] of Object.entries(getSchema(schema).properties)) {
+        const nested = prop.items?.$ref ?? prop.$ref
+        if (nested && nested !== 'archiveDevice.schema.json' && !known.has(`${base}/${key}`)) missing.push(`${base}/${key}`)
+      }
+    }
+    expect(missing).toEqual([])
   })
 })
