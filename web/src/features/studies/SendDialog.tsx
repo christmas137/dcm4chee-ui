@@ -270,7 +270,14 @@ function SendOutcome({ result, error, destination, pending }: {
     return (
       <p className="text-[12px] text-ok" role="status">
         Поставлено в очередь{result.queue ? ` «${result.queue}»` : ''}{result.taskID ? `, задача ${result.taskID}` : ''}.
-        Экспортёр отправит, как дойдёт очередь.
+        Экспортёр отправит, как дойдёт очередь.{' '}
+        <Link
+          to="/tasks"
+          search={{ queue: result.queue, open: result.queue && result.taskID ? `${result.queue}/${result.taskID}` : undefined }}
+          className="text-fg underline"
+        >
+          Открыть в задачах
+        </Link>
       </p>
     )
   }

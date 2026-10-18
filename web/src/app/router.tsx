@@ -9,11 +9,13 @@ import {
 } from '@tanstack/react-router'
 import type { RouterHistory } from '@tanstack/react-router'
 import { Layout } from './Layout'
-import { parseValue, stringifyValue, validateSettingsSearch, validateStudiesSearch, validateViewerSearch } from './searchParams'
+import {
+  parseValue, stringifyValue, validateSettingsSearch, validateStudiesSearch, validateTasksSearch, validateViewerSearch,
+} from './searchParams'
 import { StudiesPage } from '../features/studies/StudiesPage'
 import { TasksPage } from '../features/tasks/TasksPage'
 
-export type { SettingsSearch, StudiesSearch, ViewerSearch } from './searchParams'
+export type { SettingsSearch, StudiesSearch, TasksSearch, ViewerSearch } from './searchParams'
 
 const rootRoute = createRootRoute({ component: Layout })
 
@@ -40,7 +42,12 @@ const viewerRoute = createRoute({
   validateSearch: validateViewerSearch,
 })
 
-const tasksRoute = createRoute({ getParentRoute: () => rootRoute, path: '/tasks', component: TasksPage })
+const tasksRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/tasks',
+  component: TasksPage,
+  validateSearch: validateTasksSearch,
+})
 /** Загрузка — отдельным чанком: разбор DICOM и распаковка ZIP нужны только здесь. */
 const uploadRoute = createRoute({
   getParentRoute: () => rootRoute,

@@ -96,6 +96,27 @@ export function validateSettingsSearch(search: Record<string, unknown>): Setting
   }
 }
 
+/** Задачи: очередь, статус, период, пакет, исследование и раскрытая задача (`очередь/ID`). */
+export interface TasksSearch {
+  queue?: string
+  status?: string
+  since?: 'today' | '7d' | '30d'
+  batch?: string
+  study?: string
+  open?: string
+}
+
+export function validateTasksSearch(search: Record<string, unknown>): TasksSearch {
+  return {
+    queue: asString(search.queue),
+    status: asString(search.status),
+    since: oneOf(search.since, ['today', '7d', '30d'] as const),
+    batch: asString(search.batch),
+    study: asString(search.study),
+    open: asString(search.open),
+  }
+}
+
 /** Вьюер: исследование, серия и срез (с единицы — как говорят люди: «смотри 57-й срез»). */
 export interface ViewerSearch {
   study?: string

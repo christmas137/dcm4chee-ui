@@ -106,6 +106,8 @@ describe('отправка исследования', () => {
     await user.click(await dialog.findByRole('radio', { name: 'TO_CLOUD' }))
     await user.click(dialog.getByRole('button', { name: 'Отправить 49 снимков → TO_CLOUD' }))
     expect(await dialog.findByText(/Поставлено в очередь «Export1», задача 7/)).toBeInTheDocument()
+    expect(dialog.getByRole('link', { name: 'Открыть в задачах' }))
+      .toHaveAttribute('href', expect.stringMatching(/^\/tasks\?queue=Export1&open=Export1(%2F|\/)7$/))
     expect(archive.calls('POST', EXPORT)[0].path).toBe(`/aets/DCM4CHEE/rs/studies/${IVANOV_CHEST.uid}/export/TO_CLOUD`)
   })
 
